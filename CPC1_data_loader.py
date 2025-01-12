@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import torchaudio
 from pathlib import Path
 import torch
-
+import matplotlib.pyplot as plt
 # Clarity Prediction Challenge Dataset
 class CPC1(Dataset):
     def __init__(self,
@@ -45,8 +45,8 @@ class CPC1(Dataset):
         target_signal, target_sr = torchaudio.load(target_path)
         
         # Print signal details after loading
-        # print(f"Loaded Spin Signal: {spin_signal.shape}, Sample Rate: {spin_sr}")
-        # print(f"Loaded Target Signal: {target_signal.shape}, Sample Rate: {target_sr}")
+        print(f"Loaded Spin Signal: {spin_signal.shape}, Sample Rate: {spin_sr}")
+        print(f"Loaded Target Signal: {target_signal.shape}, Sample Rate: {target_sr}")
         spin_signal = spin_signal.to(self.device)
         target_signal = target_signal.to(self.device)
         
@@ -55,15 +55,15 @@ class CPC1(Dataset):
         spin_signal = self._resample_if_necessary(spin_signal, spin_sr)
         target_signal = self._resample_if_necessary(target_signal, target_sr)
         
-        # print(f"Resampled Spin Signal: {spin_signal.shape} Sample Rate: {self.target_sample_rate}")
-        # print(f"Resampled Target Signal: {target_signal.shape} Sample Rate: {self.target_sample_rate}")
+        print(f"Resampled Spin Signal: {spin_signal.shape} Sample Rate: {self.target_sample_rate}")
+        print(f"Resampled Target Signal: {target_signal.shape} Sample Rate: {self.target_sample_rate}")
         
         # Mix down if necessary
         spin_signal = self._mix_down_if_necessary(spin_signal)
         target_signal = self._mix_down_if_necessary(target_signal)
         
-        # print(f"Mix Down Spin Signal: {spin_signal.shape}")
-        # print(f"Mix Down Target Signal: {target_signal.shape}")
+        print(f"Mix Down Spin Signal: {spin_signal.shape}")
+        print(f"Mix Down Target Signal: {target_signal.shape}")
         
         # Cut if necessary
         # spin_signal = self._cut_if_necessary(spin_signal)
@@ -76,25 +76,30 @@ class CPC1(Dataset):
         
         # Adjust length of spin signal to match target signal
         spin_signal = self._adjust_length_to_target(spin_signal, target_signal)
-        # print(f"Adjusted Spin Signal: {spin_signal.shape}")
+        print(f"Adjusted Spin Signal: {spin_signal.shape}")
         
         # Apply transformation whihc is mel spectrogram
         spin_signal = self.transformation(spin_signal)
         target_signal = self.transformation(target_signal)
+        # plot = self.plot_spin_and_target_spectrogram(spin_signal, target_signal)
         
-        # print(f"Transformed Spin Signal: {spin_signal.shape}")
+        
+        print(f"Transformed Spin Signal: {spin_signal.shape}")
         # print(f"Transformed Target Signal: {target_signal.shape}")
         
         # Pad the spectrograms to max length
         spin_signal = self._pad_spectrogram(spin_signal, self.max_length)
         target_signal = self._pad_spectrogram(target_signal, self.max_length)
         
-        # print(f"Transformed and Padded Spin Signal: {spin_signal.shape}")
-        # print(f"Transformed and Padded Target Signal: {target_signal.shape}")
+        spin_signal = torch.cat((spin_signal, target_signal), dim=0)
+
+        
+        print(f"Transformed and Padded Spin Signal: {spin_signal.shape}")
+        print(f"Transformed and Padded Target Signal: {target_signal.shape}")
 
         return {
             "spin": spin_signal,
-            # "target": target_signal,
+            "target": target_signal,
             "correctness": correctness  # Return correctness
         }
         
@@ -170,6 +175,38 @@ class CPC1(Dataset):
             padding = (0, max_length - time_dim)
             spectrogram = torch.nn.functional.pad(spectrogram, padding)
         return spectrogram
+    
+    def plot_spin_and_target_spectrogram(self, spin_spectrogram, target_spectrogram):
+        fig, axs = plt.subplots(2, 1, figsize=(12, 8), constrained_layout=True)
+        
+        
+        
+        # Plot spin spectrogram
+        spin_data = spin_spectrogram.log2()[0, :, :].cpu().numpy()
+        axs[0].imshow(spin_data, aspect="auto", origin="lower", extent=[0, spin_data.shape[1], 0, spin_data.shape[0]])
+        axs[0].set_title("Spin Signal Spectrogram")
+        axs[0].set_xlabel("Time Frames")
+        axs[0].set_ylabel("Mel Frequency Bands")
+        axs[0].set_xticks(range(0, spin_data.shape[1], max(1, spin_data.shape[1] // 10)))
+        axs[0].colorbar = fig.colorbar(axs[0].images[0], ax=axs[0], format="%+2.0f dB")
+        
+        # Plot target spectrogram
+        target_data = target_spectrogram.log2()[0, :, :].cpu().numpy()
+        axs[1].imshow(target_data, aspect="auto", origin="lower", extent=[0, target_data.shape[1], 0, target_data.shape[0]])
+        axs[1].set_title("Target Signal Spectrogram")
+        axs[1].set_xlabel("Time Frames")
+        axs[1].set_ylabel("Mel Frequency Bands")
+        axs[1].set_xticks(range(0, target_data.shape[1], max(1, target_data.shape[1] // 10)))
+        axs[1].colorbar = fig.colorbar(axs[1].images[0], ax=axs[1], format="%+2.0f dB")
+        
+        # Save or show the plot
+        
+        plt.show()
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -210,9 +247,10 @@ if __name__ == "__main__":
     # print(f"Maximum Spectrogram Time Dimension Across Dataset: {max_length}")
 
     # # Test a few samples
-    for i in range(10):
+    for i in range(1):
         sample = dataset[i]
         print(f"Sample {i+1}: Spin Spectrogram Shape: {sample['spin'].shape}, Correctness: {sample['correctness']}")
+        
 
     
     

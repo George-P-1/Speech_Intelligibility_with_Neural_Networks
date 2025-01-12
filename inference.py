@@ -45,7 +45,7 @@ if __name__ == "__main__":
     total_correctness = 0
 
     # Loop through first 10 samples
-    for idx in range(1000):
+    for idx in range(2421):
         sample = dataset[idx]  # Get the current sample
         input, target = sample["spin"], sample["correctness"]  # Access 'spin' and 'correctness'
         # normally torch expects 3D input, but we have 4D input so we need to unsqueeze it to add a batch dimension
