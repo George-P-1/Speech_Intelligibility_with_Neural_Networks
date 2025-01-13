@@ -1,8 +1,8 @@
 import torch
-from cnn import CNNNetwork
+from CNNNNNNN.cnn import CNNNetwork
 import torchaudio
-from CPC1_data_loader import CPC1
-from train import SAMPLE_RATE, NUM_SAMPLES, ANNOTATIONS_FILE, SPIN_FOLDER, SCENES_FOLDER
+from CNNNNNNN.CPC1_data_loader import CPC1
+from CNNNNNNN.train import SAMPLE_RATE, NUM_SAMPLES, ANNOTATIONS_FILE, SPIN_FOLDER, SCENES_FOLDER
 
 
 def predict(model, input, target):

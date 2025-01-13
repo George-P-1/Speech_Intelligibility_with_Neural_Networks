@@ -146,7 +146,7 @@ class CPC1(Dataset):
         return signal
     
     def _mix_down_if_necessary(self, signal): # mix down from 2 channels to 1 channel
-        # signal -> (num_channels, num_samples) -> (2, 16000) -> (1, 16000) we want to aggregate the channels into one
+        # signal -> (num_channels, num_samples) -> (2, 96000) -> (1, 96000) we want to aggregate the channels into one
         # we want to mix down only when the number of channels is greater than 1
         if signal.shape[0] > 1:
             signal = torch.mean(signal, dim=0, keepdim=True)
@@ -179,8 +179,6 @@ class CPC1(Dataset):
     def plot_spin_and_target_spectrogram(self, spin_spectrogram, target_spectrogram):
         fig, axs = plt.subplots(2, 1, figsize=(12, 8), constrained_layout=True)
         
-        
-        
         # Plot spin spectrogram
         spin_data = spin_spectrogram.log2()[0, :, :].cpu().numpy()
         axs[0].imshow(spin_data, aspect="auto", origin="lower", extent=[0, spin_data.shape[1], 0, spin_data.shape[0]])
@@ -204,11 +202,6 @@ class CPC1(Dataset):
         plt.show()
 
 
-
-
-
-
-
 if __name__ == "__main__":
     # Paths from the Hydra config
 # Specify paths directly here
@@ -216,7 +209,7 @@ if __name__ == "__main__":
     spin_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/HA_outputs/test"
     scenes_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/scenes"
     SAMPLE_RATE = 16000
-    NUM_SAMPLES = 2421
+    NUM_SAMPLES = SAMPLE_RATE * 6
     MAX_LENGTH = 263
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
