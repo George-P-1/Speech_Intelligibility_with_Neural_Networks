@@ -65,10 +65,16 @@ class CPC1(Dataset):
         print(f"Mix Down Spin Signal: {spin_signal.shape}")
         print(f"Mix Down Target Signal: {target_signal.shape}")
         
+        # Plot the signals before cuttin
+        self.plot_signals(spin_signal, target_signal, self.target_sample_rate)
+        
+        # Cut the signals based on the timings (2 seconds from start, 1 second from end)
+        spin_signal, target_signal = self._cut_timings(spin_signal, target_signal, self.target_sample_rate)
+        # Plot the signals after cutting
+        self.plot_signals(spin_signal, target_signal, self.target_sample_rate)
         # Cut if necessary
         # spin_signal = self._cut_if_necessary(spin_signal)
         # target_signal = self._cut_if_necessary(target_signal)
-        
         
         # Right pad if necessary
         # spin_signal = self._right_pad_if_necessary(spin_signal)
@@ -81,15 +87,36 @@ class CPC1(Dataset):
         # Apply transformation whihc is mel spectrogram
         spin_signal = self.transformation(spin_signal)
         target_signal = self.transformation(target_signal)
-        # plot = self.plot_spin_and_target_spectrogram(spin_signal, target_signal)
         
+        
+        # Convert to dB if not already in dB
+        spin_signal_db = 10 * torch.log10(spin_signal + 1e-10)  # Adding small value to avoid log(0)
+        target_signal_db = 10 * torch.log10(target_signal + 1e-10)
+
+        # Normalize to the range [-1, 0.5]
+        spin_signal_db = spin_signal_db / 20.0  # Normalizing from [-20, 10] to [-1, 0.5]
+        target_signal_db = target_signal_db / 20.0
+        
+        # TODO: mean values of spectograms
+        # TODO: check if it is in db as input to the model
+        # TODO: all spectogram values are between -20 and 10 db and we divide by 20 and we will have -1 and 0.5
+        
+        # Plot spectrogram
+        # plot = self.plot_spin_and_target_spectrogram(spin_signal, target_signal)
+        # self.plot_spin_and_target_spectrogram(spin_signal, target_signal, spin_signal_db, target_signal_db)
         
         print(f"Transformed Spin Signal: {spin_signal.shape}")
         # print(f"Transformed Target Signal: {target_signal.shape}")
         
+        # Cut first 2 seconds and last 1 second
+
+        # self.plot_spin_and_target_spectrogram(spin_signal_db, target_signal_db)
+        
         # Pad the spectrograms to max length
         spin_signal = self._pad_spectrogram(spin_signal, self.max_length)
         target_signal = self._pad_spectrogram(target_signal, self.max_length)
+        
+        self.plot_spin_and_target_spectrogram(spin_signal, target_signal, spin_signal_db, target_signal_db)
         
         spin_signal = torch.cat((spin_signal, target_signal), dim=0)
 
@@ -99,7 +126,7 @@ class CPC1(Dataset):
 
         return {
             "spin": spin_signal,
-            "target": target_signal,
+            # "target": target_signal,
             "correctness": correctness  # Return correctness
         }
         
@@ -118,8 +145,7 @@ class CPC1(Dataset):
             signal = torch.nn.functional.pad(signal, last_dim_padding)
     
         return signal
-
-        
+  
     def _cut_if_necessary(self, signal):
         # Cut the signal to the desired length
         # signal -> Tensor -> (1, num_samples) 
@@ -146,7 +172,7 @@ class CPC1(Dataset):
         return signal
     
     def _mix_down_if_necessary(self, signal): # mix down from 2 channels to 1 channel
-        # signal -> (num_channels, num_samples) -> (2, 96000) -> (1, 96000) we want to aggregate the channels into one
+        # signal -> (num_channels, num_samples) -> (2, 16000) -> (1, 16000) we want to aggregate the channels into one
         # we want to mix down only when the number of channels is greater than 1
         if signal.shape[0] > 1:
             signal = torch.mean(signal, dim=0, keepdim=True)
@@ -158,7 +184,7 @@ class CPC1(Dataset):
         target_path = self.scenes_folder / f"{entry['scene']}_target_anechoic.wav"
         return spin_path, target_path
     
-    def find_max_spectrogram_length(dataset):
+    def find_max_spectrogram_length(dataset): # 263
         max_length = 0
         for i in range(len(dataset)):
             sample = dataset[i]  # Retrieve the sample
@@ -169,6 +195,24 @@ class CPC1(Dataset):
             print(f"Processed sample {i+1}/{len(dataset)}, Current Max Length: {max_length}")
         return max_length
     
+    
+    def _cut_timings(self, spin_signal, target_signal, sample_rate):
+        # Debugging: Print the shape of the signals before cutting
+        print(f"Before cut: Spin signal shape: {spin_signal.shape}, Target signal shape: {target_signal.shape}")
+        
+        # Number of samples to remove based on the sample rate (2 seconds for start, 1 second for end)
+        cut_start = int(2 * sample_rate)  # 2 seconds from the start
+        cut_end = int(1 * sample_rate)    # 1 second from the end
+        
+        # Cutting the signals
+        spin_signal = spin_signal[:, cut_start:-cut_end] if spin_signal.shape[1] > cut_start + cut_end else spin_signal
+        target_signal = target_signal[:, cut_start:-cut_end] if target_signal.shape[1] > cut_start + cut_end else target_signal
+        
+        # Debugging: Print the shape of the signals after cutting
+        print(f"After cut: Spin signal shape: {spin_signal.shape}, Target signal shape: {target_signal.shape}")
+        
+        return spin_signal, target_signal
+
     def _pad_spectrogram(self, spectrogram, max_length):
         time_dim = spectrogram.shape[-1]
         if time_dim < max_length:
@@ -176,30 +220,75 @@ class CPC1(Dataset):
             spectrogram = torch.nn.functional.pad(spectrogram, padding)
         return spectrogram
     
-    def plot_spin_and_target_spectrogram(self, spin_spectrogram, target_spectrogram):
-        fig, axs = plt.subplots(2, 1, figsize=(12, 8), constrained_layout=True)
+    def plot_spin_and_target_spectrogram(self, spin_signal, target_signal, spin_signal_db, target_signal_db):
+        fig, axs = plt.subplots(2, 2, figsize=(12, 8), constrained_layout=True)
         
-        # Plot spin spectrogram
-        spin_data = spin_spectrogram.log2()[0, :, :].cpu().numpy()
-        axs[0].imshow(spin_data, aspect="auto", origin="lower", extent=[0, spin_data.shape[1], 0, spin_data.shape[0]])
-        axs[0].set_title("Spin Signal Spectrogram")
-        axs[0].set_xlabel("Time Frames")
-        axs[0].set_ylabel("Mel Frequency Bands")
-        axs[0].set_xticks(range(0, spin_data.shape[1], max(1, spin_data.shape[1] // 10)))
-        axs[0].colorbar = fig.colorbar(axs[0].images[0], ax=axs[0], format="%+2.0f dB")
-        
-        # Plot target spectrogram
-        target_data = target_spectrogram.log2()[0, :, :].cpu().numpy()
-        axs[1].imshow(target_data, aspect="auto", origin="lower", extent=[0, target_data.shape[1], 0, target_data.shape[0]])
-        axs[1].set_title("Target Signal Spectrogram")
-        axs[1].set_xlabel("Time Frames")
-        axs[1].set_ylabel("Mel Frequency Bands")
-        axs[1].set_xticks(range(0, target_data.shape[1], max(1, target_data.shape[1] // 10)))
-        axs[1].colorbar = fig.colorbar(axs[1].images[0], ax=axs[1], format="%+2.0f dB")
-        
-        # Save or show the plot
-        
+        # Plot raw spin spectrogram (without log)
+        im1 = axs[0, 0].imshow(spin_signal[0, :, :].cpu().numpy(), aspect="auto", origin="lower", extent=[0, spin_signal.shape[2], 0, spin_signal.shape[1]])
+        axs[0, 0].set_title("Raw Spin Signal Spectrogram (No Log)")
+        axs[0, 0].set_xlabel("Time Frames")
+        axs[0, 0].set_ylabel("Mel Frequency Bands")
+        fig.colorbar(im1, ax=axs[0, 0])
+
+        # Plot log-scaled spin spectrogram (with log)
+        im2 = axs[0, 1].imshow(spin_signal_db[0, :, :].cpu().numpy(), aspect="auto", origin="lower", extent=[0, spin_signal_db.shape[2], 0, spin_signal_db.shape[1]])
+        axs[0, 1].set_title("Log-Scaled Spin Signal Spectrogram")
+        axs[0, 1].set_xlabel("Time Frames")
+        axs[0, 1].set_ylabel("Mel Frequency Bands")
+        fig.colorbar(im2, ax=axs[0, 1])
+
+        # Plot raw target spectrogram (without log)
+        im3 = axs[1, 0].imshow(target_signal[0, :, :].cpu().numpy(), aspect="auto", origin="lower", extent=[0, target_signal.shape[2], 0, target_signal.shape[1]])
+        axs[1, 0].set_title("Raw Target Signal Spectrogram (No Log)")
+        axs[1, 0].set_xlabel("Time Frames")
+        axs[1, 0].set_ylabel("Mel Frequency Bands")
+        fig.colorbar(im3, ax=axs[1, 0])
+
+        # Plot log-scaled target spectrogram (with log)
+        im4 = axs[1, 1].imshow(target_signal_db[0, :, :].cpu().numpy(), aspect="auto", origin="lower", extent=[0, target_signal_db.shape[2], 0, target_signal_db.shape[1]])
+        axs[1, 1].set_title("Log-Scaled Target Signal Spectrogram")
+        axs[1, 1].set_xlabel("Time Frames")
+        axs[1, 1].set_ylabel("Mel Frequency Bands")
+        fig.colorbar(im4, ax=axs[1, 1])
+
         plt.show()
+        
+    def plot_signals(self, spin_signal, target_signal, sample_rate):
+        """
+        Plots the spin and target audio signals over time.
+
+        Args:
+            spin_signal (Tensor): The spin audio signal.
+            target_signal (Tensor): The target audio signal.
+            sample_rate (int): The sample rate of the audio signals.
+        """
+        time_spin = torch.arange(spin_signal.shape[1]) / sample_rate
+        time_target = torch.arange(target_signal.shape[1]) / sample_rate
+
+        plt.figure(figsize=(12, 6))
+
+        # Plot spin signal
+        plt.subplot(2, 1, 1)
+        plt.plot(time_spin.cpu(), spin_signal[0].cpu(), label="Spin Signal", color="blue")
+        plt.title("Spin Signal Over Time")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Amplitude")
+        plt.legend()
+
+        # Plot target signal
+        plt.subplot(2, 1, 2)
+        plt.plot(time_target.cpu(), target_signal[0].cpu(), label="Target Signal", color="orange")
+        plt.title("Target Signal Over Time")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Amplitude")
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -209,7 +298,7 @@ if __name__ == "__main__":
     spin_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/HA_outputs/test"
     scenes_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/scenes"
     SAMPLE_RATE = 16000
-    NUM_SAMPLES = SAMPLE_RATE * 6
+    NUM_SAMPLES = 2421
     MAX_LENGTH = 263
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -241,8 +330,10 @@ if __name__ == "__main__":
 
     # # Test a few samples
     for i in range(1):
-        sample = dataset[i]
+        sample = dataset[i+10]
         print(f"Sample {i+1}: Spin Spectrogram Shape: {sample['spin'].shape}, Correctness: {sample['correctness']}")
+        
+        
         
 
     
@@ -250,3 +341,8 @@ if __name__ == "__main__":
     
     # print(f"Scene: {sample['spin']}, Correctness: {sample['correctness']}")
     # print(f"Spin Signal Shape: {sample['spin'].shape}, Target Signal Shape: {sample['target'].shape}")
+    
+    
+    #TODO: Add masking for zeros in the spectrogram so we dont want to include in the training
+    
+    #TODO: i can reject fist 2 s and last 1 s for noisey part
