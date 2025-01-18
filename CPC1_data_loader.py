@@ -48,7 +48,7 @@ class CPC1(Dataset):
         # spin_signal = self._adjust_length_to_target(spin_signal, target_signal)
         
         # Remove the first 2 seconds and last 1 second based on CPC1 guidelines
-        spin_signal, target_signal = self._cut_timings(spin_signal, target_signal, self.target_sample_rate)
+        # spin_signal, target_signal = self._cut_timings(spin_signal, target_signal, self.target_sample_rate)
 
         spin_signal = self.transformation(spin_signal)
         target_signal = self.transformation(target_signal)
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     scenes_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/scenes"
     SAMPLE_RATE = 16000
     NUM_SAMPLES = 2421
-    MAX_LENGTH = 169 # 263 or 169
+    MAX_LENGTH = 263 # 263 or 169
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 

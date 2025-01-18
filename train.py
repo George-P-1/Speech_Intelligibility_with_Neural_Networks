@@ -1,93 +1,104 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from CNNNNNNN.CPC1_data_loader import CPC1
+from CPC1_data_loader import CPC1
 import torchaudio
-import wandb  # Import WandB
+import wandb
 import numpy as np
-from CNNNNNNN.cnn import CNNNetwork
+from cnn import CNNNetwork
 import random
+import datetime
+import os
+import time
 
-
-BATCH_SIZE = 200
-EPOCHS = 10
-LEARNING_RATE = 0.001
+BATCH_SIZE = 32
+EPOCHS = 30
+LEARNING_RATE = 0.0001
 
 # Specify paths directly here
-ANNOTATIONS_FILE = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/metadata/CPC1.test.json"
-SPIN_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/HA_outputs/test"
-SCENES_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/scenes"
+ANNOTATIONS_FILE = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/metadata/CPC1.train.json"
+SPIN_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/clarity_data/HA_outputs/train"
+SCENES_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/clarity_data/scenes"
 
 SAMPLE_RATE = 16000
 NUM_SAMPLES = SAMPLE_RATE * 6
 
-# TODO: Add random seed for reproducibility after finishing the CNN
-
 seed = 42
-torch.manual_seed(seed)  # For PyTorch operations
-np.random.seed(seed)  # For NumPy operations
-random.seed(seed)  
-def create_data_loader(train_data, batch_size, shuffle=True):
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
-    return train_dataloader
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 
+def create_data_loader(train_data, batch_size, shuffle=True):
+    return DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
 
 def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
     total_loss = 0
     for batch in data_loader:
-        input = batch['spin'].to(device).float()  # Input to the model
-        print(f"Spin name {batch['spin']}")
-        target = batch['correctness'].to(device).float() / 100.0  # Normalize target
-        target = target.unsqueeze(1)
+        input = batch['spin'].to(device).float()
+        mask = batch['mask'].to(device).unsqueeze(1)  # Ensure mask matches prediction dimensions
+        target = batch['correctness'].to(device).float().unsqueeze(1)
+        prediction = model(input).float()
+        loss = (loss_fn(prediction, target) * mask).sum() / mask.sum()  # Apply mask to loss
 
-        # Calculate loss
-        prediction = model(input).float()  # Prediction should be between 0 and 1
-        loss = loss_fn(prediction, target)  # MSE loss for regression
-
-        # Backpropagate error and update weights
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
 
         total_loss += loss.item()
 
-    # Log loss to WandB after every epoch
     wandb.log({"epoch": epoch, "train_loss": total_loss / len(data_loader)})
-    print(f"Loss: {total_loss / len(data_loader)}")
+    print(f"Epoch {epoch}: Loss: {total_loss / len(data_loader):.4f}")
 
-
-def train(model, data_loader, loss_fn, optimiser, device, epochs):
-    for i in range(epochs):
-        print(f"Epoch {i+1}")
-        train_single_epoch(model, data_loader, loss_fn, optimiser, device, i+1)
-        print("---------------------------")
-    print("Finished training")
-
+def train(model, data_loader, loss_fn, optimiser, device, epochs, model_filename):
+    start_time = time.time()
+    try:
+        for epoch in range(epochs):
+            print(f"Epoch {epoch + 1}/{epochs}")
+            train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch + 1)
+            print("---------------------------")
+        print("Finished training")
+    except KeyboardInterrupt:
+        print("\nTraining interrupted! Saving model...")
+        torch.save(model.state_dict(), model_filename)
+        print(f"Model saved at {model_filename}")
+        raise
+    finally:
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Total training time: {elapsed_time:.2f} seconds")
 
 if __name__ == "__main__":
-    # Initialize WandB run
-    wandb.init(project="speech-clarity-prediction", entity="codeexia0")
-    
-    # TODO: Add different scenarios for training by giving different values to the hyperparameters
-    # Log hyperparameters
-    wandb.config.batch_size = BATCH_SIZE
-    wandb.config.epochs = EPOCHS
-    wandb.config.learning_rate = LEARNING_RATE
-    wandb.config.sample_rate = NUM_SAMPLES
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_filename = f"cnn_model_{timestamp}.pth"
 
-    # Check device
+    tags = [
+        f"batch_size_{BATCH_SIZE}",
+        f"epochs_{EPOCHS}",
+        f"learning_rate_{LEARNING_RATE}",
+        f"sample_rate_{SAMPLE_RATE}",
+        f"model_filename_{model_filename}",
+    ]
+    comments = "Training the model without masking and with updated data processing." 
+
+    wandb.init(project="speech-clarity-prediction", entity="codeexia0", name=model_filename, tags=tags, notes=comments)
+
+    wandb.config.update({
+        "batch_size": BATCH_SIZE,
+        "epochs": EPOCHS,
+        "learning_rate": LEARNING_RATE,
+        "sample_rate": SAMPLE_RATE,
+    })
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using Device: {device}")
 
-    # Create mel spectrogram transform
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=1024,
         hop_length=512,
-        n_mels=64,  # Number of mel filterbanks
+        n_mels=64,
     )
 
-    # Initialize dataset
     dataset = CPC1(
         ANNOTATIONS_FILE,
         SPIN_FOLDER,
@@ -96,28 +107,31 @@ if __name__ == "__main__":
         SAMPLE_RATE,
         NUM_SAMPLES,
         device,
-        max_length=263
+        max_length=263,
     )
 
     train_dataloader = create_data_loader(dataset, BATCH_SIZE, shuffle=True)
 
-    # Initialize the model
     cnn_model = CNNNetwork().to(device)
     print(cnn_model)
 
-    # Initialize loss function and optimizer
-    loss_fn = nn.MSELoss()
+    # loss_fn = nn.MSELoss()
+    loss_fn = nn.MSELoss(reduction='none')  # Ensure loss is not reduced for masking
     optimiser = torch.optim.Adam(cnn_model.parameters(), lr=LEARNING_RATE)
 
-    # Log the model architecture to WandB
     wandb.watch(cnn_model, log="all", log_freq=100)
 
-    # Train the model
-    train(cnn_model, train_dataloader, loss_fn, optimiser, device, EPOCHS)
+    print(f"Model will be saved to {model_filename}")
 
-    # Save the model
-    torch.save(cnn_model.state_dict(), "feedforwardnet_fl.pth")
-    print("Trained feedforward net saved at feedforwardnet.pth")
+    try:
+        train(cnn_model, train_dataloader, loss_fn, optimiser, device, EPOCHS, model_filename)
+    except RuntimeError as e:
+        print(f"Runtime Error: {e}")
+        print("Ensure the padding length is consistent for all tensors.")
+    finally:
+        if not os.path.exists(model_filename):
+            print("Saving model due to final exit.")
+            torch.save(cnn_model.state_dict(), model_filename)
+            print(f"Final model saved at {model_filename}")
 
-    # End the WandB run
     wandb.finish()
