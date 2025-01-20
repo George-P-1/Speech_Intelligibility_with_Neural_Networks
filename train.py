@@ -1,21 +1,24 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from CPC1_data_loader import CPC1
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 import torchaudio
 import wandb
 import numpy as np
 from cnn import CNNNetwork
+from CPC1_data_loader import CPC1
 import random
 import datetime
 import os
 import time
 
+# Hyperparameters
 BATCH_SIZE = 32
 EPOCHS = 30
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 
-# Specify paths directly here
+# Dataset Parameters
 ANNOTATIONS_FILE = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/metadata/CPC1.train.json"
 SPIN_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/clarity_data/HA_outputs/train"
 SCENES_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_1/clarity_CPC1_data/clarity_data/scenes"
@@ -23,20 +26,38 @@ SCENES_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_
 SAMPLE_RATE = 16000
 NUM_SAMPLES = SAMPLE_RATE * 6
 
+# Set random seeds for reproducibility
 seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
 
-def create_data_loader(train_data, batch_size, shuffle=True):
-    return DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
+# Initialize wandb for experiment tracking
+wandb.init(project="speech-clarity-prediction", entity="codeexia0")
+wandb.config.update({
+    "batch_size": BATCH_SIZE,
+    "epochs": EPOCHS,
+    "learning_rate": LEARNING_RATE,
+    "sample_rate": SAMPLE_RATE,
+})
+
+def plot_combined_loss(train_losses, val_losses):
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_losses, label="Training Loss")
+    plt.plot(val_losses, label="Validation Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.title("Training and Validation Loss over Epochs")
+    plt.show()
 
 def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
+    model.train()
     total_loss = 0
-    for batch in data_loader:
-        input = batch['spin'].to(device).float()
-        mask = batch['mask'].to(device).unsqueeze(1)  # Ensure mask matches prediction dimensions
-        target = batch['correctness'].to(device).float().unsqueeze(1)
+    for input, target, mask in data_loader:
+        input = input.to(device).float()
+        mask = mask.to(device).unsqueeze(1)  # Ensure mask matches prediction dimensions
+        target = target.to(device).float().unsqueeze(1)
         prediction = model(input).float()
         loss = (loss_fn(prediction, target) * mask).sum() / mask.sum()  # Apply mask to loss
 
@@ -48,50 +69,46 @@ def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
 
     wandb.log({"epoch": epoch, "train_loss": total_loss / len(data_loader)})
     print(f"Epoch {epoch}: Loss: {total_loss / len(data_loader):.4f}")
+    return total_loss / len(data_loader)
 
-def train(model, data_loader, loss_fn, optimiser, device, epochs, model_filename):
-    start_time = time.time()
-    try:
-        for epoch in range(epochs):
-            print(f"Epoch {epoch + 1}/{epochs}")
-            train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch + 1)
-            print("---------------------------")
-        print("Finished training")
-    except KeyboardInterrupt:
-        print("\nTraining interrupted! Saving model...")
-        torch.save(model.state_dict(), model_filename)
-        print(f"Model saved at {model_filename}")
-        raise
-    finally:
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Total training time: {elapsed_time:.2f} seconds")
+def validate_single_epoch(model, data_loader, loss_fn, device, epoch):
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+        for input, target, mask in data_loader:
+            input = input.to(device).float()
+            target = target.to(device).float().unsqueeze(1)
+            prediction = model(input).float()
+            loss = loss_fn(prediction, target).mean()  # Validation without masking
+            total_loss += loss.item()
+    avg_loss = total_loss / len(data_loader)
+    wandb.log({"epoch": epoch, "val_loss": avg_loss})
+    print(f"Epoch {epoch}: Validation Loss: {avg_loss:.4f}")
+    return avg_loss
+
+def train_and_validate(model, train_loader, val_loader, loss_fn, optimiser, device, epochs):
+    train_losses, val_losses = [], []
+    for epoch in range(epochs):
+        print(f"Epoch {epoch + 1}/{epochs}")
+        train_loss = train_single_epoch(model, train_loader, loss_fn, optimiser, device, epoch + 1)
+        val_loss = validate_single_epoch(model, val_loader, loss_fn, device, epoch + 1)
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
+        print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
+        print("---------------------------")
+
+    # Plot combined loss curves
+    plot_combined_loss(train_losses, val_losses)
+    print("Training complete.")
 
 if __name__ == "__main__":
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_filename = f"cnn_model_{timestamp}.pth"
-
-    tags = [
-        f"batch_size_{BATCH_SIZE}",
-        f"epochs_{EPOCHS}",
-        f"learning_rate_{LEARNING_RATE}",
-        f"sample_rate_{SAMPLE_RATE}",
-        f"model_filename_{model_filename}",
-    ]
-    comments = "Training the model without masking and with updated data processing." 
-
-    wandb.init(project="speech-clarity-prediction", entity="codeexia0", name=model_filename, tags=tags, notes=comments)
-
-    wandb.config.update({
-        "batch_size": BATCH_SIZE,
-        "epochs": EPOCHS,
-        "learning_rate": LEARNING_RATE,
-        "sample_rate": SAMPLE_RATE,
-    })
-
+    # Set device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using Device: {device}")
 
+    # Define transformations
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=1024,
@@ -107,31 +124,52 @@ if __name__ == "__main__":
         SAMPLE_RATE,
         NUM_SAMPLES,
         device,
-        max_length=263,
+        max_length=169,
     )
 
-    train_dataloader = create_data_loader(dataset, BATCH_SIZE, shuffle=True)
+    # Convert dataset to features (X), labels (y), and masks
+    X, y, masks = [], [], []
+    for data in dataset:
+        X.append(data['spin'].cpu().numpy())
+        y.append(data['correctness'])  # Correctness is already a float
+        masks.append(data['mask'].cpu().numpy())
+    X = np.array(X)
+    y = np.array(y)
+    masks = np.array(masks)
 
-    cnn_model = CNNNetwork().to(device)
-    print(cnn_model)
+    # Split data into training and validation sets
+    X_train, X_val, y_train, y_val, masks_train, masks_val = train_test_split(X, y, masks, test_size=0.2, random_state=41)
 
-    # loss_fn = nn.MSELoss()
-    loss_fn = nn.MSELoss(reduction='none')  # Ensure loss is not reduced for masking
-    optimiser = torch.optim.Adam(cnn_model.parameters(), lr=LEARNING_RATE)
+    print(f"Training samples: {len(X_train)}, Validation samples: {len(X_val)}")
 
-    wandb.watch(cnn_model, log="all", log_freq=100)
+    # Create DataLoaders for batch processing
+    def create_data_loader(X, y, masks, batch_size):
+        X_tensor = torch.tensor(X, dtype=torch.float32)
+        y_tensor = torch.tensor(y, dtype=torch.float32)
+        masks_tensor = torch.tensor(masks, dtype=torch.float32)
+        dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor, masks_tensor)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    print(f"Model will be saved to {model_filename}")
+    train_loader = create_data_loader(X_train, y_train, masks_train, BATCH_SIZE)
+    val_loader = create_data_loader(X_val, y_val, masks_val, BATCH_SIZE)
+
+    # Initialize model, loss function, and optimizer
+    model = CNNNetwork().to(device)
+    loss_fn = nn.MSELoss(reduction='none')
+    optimiser = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     try:
-        train(cnn_model, train_dataloader, loss_fn, optimiser, device, EPOCHS, model_filename)
+        # Train and validate
+        train_and_validate(model, train_loader, val_loader, loss_fn, optimiser, device, EPOCHS)
     except RuntimeError as e:
         print(f"Runtime Error: {e}")
         print("Ensure the padding length is consistent for all tensors.")
     finally:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_filename = f"cnn_model_{timestamp}.pth"
         if not os.path.exists(model_filename):
             print("Saving model due to final exit.")
-            torch.save(cnn_model.state_dict(), model_filename)
+            torch.save(model.state_dict(), model_filename)
             print(f"Final model saved at {model_filename}")
 
     wandb.finish()
