@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import torchaudio
@@ -41,15 +41,27 @@ wandb.config.update({
     "sample_rate": SAMPLE_RATE,
 })
 
-def plot_combined_loss(train_losses, val_losses):
+def plot_combined_loss(train_losses, val_losses, fold_index, model_filename):
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses, label="Training Loss")
     plt.plot(val_losses, label="Validation Loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
-    plt.title("Training and Validation Loss over Epochs")
-    plt.show()
+    plt.title(f"Training and Validation Loss for {model_filename} (Fold {fold_index + 1})")
+    plot_filename = f"{model_filename}_fold_{fold_index + 1}.svg"
+    plt.savefig(plot_filename, format="svg")
+    print(f"Saved loss plot for Fold {fold_index + 1} at {plot_filename}")
+    plt.close()
+    
+def create_data_loader(X, y, masks, batch_size, shuffle=True):
+    dataset = torch.utils.data.TensorDataset(
+        torch.tensor(X, dtype=torch.float32),
+        torch.tensor(y, dtype=torch.float32),
+        torch.tensor(masks, dtype=torch.float32),
+    )
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
 
 def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
     model.train()
@@ -58,6 +70,7 @@ def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
         input = input.to(device).float()
         mask = mask.to(device).unsqueeze(1)  # Ensure mask matches prediction dimensions
         target = target.to(device).float().unsqueeze(1)
+
         prediction = model(input).float()
         loss = (loss_fn(prediction, target) * mask).sum() / mask.sum()  # Apply mask to loss
 
@@ -67,11 +80,10 @@ def train_single_epoch(model, data_loader, loss_fn, optimiser, device, epoch):
 
         total_loss += loss.item()
 
-    wandb.log({"epoch": epoch, "train_loss": total_loss / len(data_loader)})
-    print(f"Epoch {epoch}: Loss: {total_loss / len(data_loader):.4f}")
     return total_loss / len(data_loader)
 
-def validate_single_epoch(model, data_loader, loss_fn, device, epoch):
+
+def validate_single_epoch(model, data_loader, loss_fn, device):
     model.eval()
     total_loss = 0
     with torch.no_grad():
@@ -81,27 +93,81 @@ def validate_single_epoch(model, data_loader, loss_fn, device, epoch):
             prediction = model(input).float()
             loss = loss_fn(prediction, target).mean()  # Validation without masking
             total_loss += loss.item()
-    avg_loss = total_loss / len(data_loader)
-    wandb.log({"epoch": epoch, "val_loss": avg_loss})
-    print(f"Epoch {epoch}: Validation Loss: {avg_loss:.4f}")
-    return avg_loss
+    return total_loss / len(data_loader)
 
-def train_and_validate(model, train_loader, val_loader, loss_fn, optimiser, device, epochs):
-    train_losses, val_losses = [], []
-    for epoch in range(epochs):
-        print(f"Epoch {epoch + 1}/{epochs}")
-        train_loss = train_single_epoch(model, train_loader, loss_fn, optimiser, device, epoch + 1)
-        val_loss = validate_single_epoch(model, val_loader, loss_fn, device, epoch + 1)
 
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+def cross_validate(model_class, dataset, loss_fn, optimiser_class, device, epochs, batch_size, k=5):
+    n_samples = len(dataset)
+    fold_size = n_samples // k
 
-        print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
-        print("---------------------------")
+    # Extract features, labels, and masks from the dataset
+    X, y, masks = [], [], []
+    for data in dataset:
+        X.append(data['spin'].cpu().numpy())
+        y.append(data['correctness'])
+        masks.append(data['mask'].cpu().numpy())
+    X = np.array(X)
+    y = np.array(y)
+    masks = np.array(masks)
 
-    # Plot combined loss curves
-    plot_combined_loss(train_losses, val_losses)
-    print("Training complete.")
+    fold_results = []  # To store final results for each fold
+
+    for fold in range(k):
+        print(f"Starting Fold {fold + 1}/{k}")
+
+        # Define train and validation indices
+        val_start = fold * fold_size
+        val_end = val_start + fold_size if fold < k - 1 else n_samples
+        val_indices = list(range(val_start, val_end))
+        train_indices = list(range(0, val_start)) + list(range(val_end, n_samples))
+
+        # Create train and validation DataLoaders
+        X_train, y_train, masks_train = X[train_indices], y[train_indices], masks[train_indices]
+        X_val, y_val, masks_val = X[val_indices], y[val_indices], masks[val_indices]
+
+        train_loader = create_data_loader(X_train, y_train, masks_train, batch_size)
+        val_loader = create_data_loader(X_val, y_val, masks_val, batch_size, shuffle=False)
+
+        # Initialize model and optimizer for each fold
+        model = model_class().to(device)
+        optimiser = optimiser_class(model.parameters(), lr=LEARNING_RATE)
+
+        train_losses, val_losses = [], []
+
+        for epoch in range(epochs):
+            print(f"Epoch {epoch + 1}/{epochs} - Fold {fold + 1}/{k}")
+            train_loss = train_single_epoch(model, train_loader, loss_fn, optimiser, device, epoch + 1)
+            val_loss = validate_single_epoch(model, val_loader, loss_fn, device)
+
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
+            print("---------------------------")
+
+        # Save model for this fold
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        fold_model_filename = f"cnn_model_fold_{fold + 1}_{timestamp}.pth"
+        torch.save(model.state_dict(), fold_model_filename)
+        print(f"Model for Fold {fold + 1} saved at {fold_model_filename}")
+
+        # Save loss plot for this fold
+        plot_combined_loss(train_losses, val_losses, fold, fold_model_filename)
+
+        # Store final epoch results
+        fold_results.append({
+            "fold": fold + 1,
+            "final_train_loss": train_losses[-1],
+            "final_val_loss": val_losses[-1]
+        })
+
+    print("Cross-validation complete.")
+
+    # Print summary of all folds
+    print("\nFinal Results:")
+    for result in fold_results:
+        print(f"Fold {result['fold']}: Final Train Loss = {result['final_train_loss']:.4f}, Final Validation Loss = {result['final_val_loss']:.4f}")
+
 
 if __name__ == "__main__":
     # Set device
@@ -127,49 +193,14 @@ if __name__ == "__main__":
         max_length=169,
     )
 
-    # Convert dataset to features (X), labels (y), and masks
-    X, y, masks = [], [], []
-    for data in dataset:
-        X.append(data['spin'].cpu().numpy())
-        y.append(data['correctness'])  # Correctness is already a float
-        masks.append(data['mask'].cpu().numpy())
-    X = np.array(X)
-    y = np.array(y)
-    masks = np.array(masks)
-
-    # Split data into training and validation sets
-    X_train, X_val, y_train, y_val, masks_train, masks_val = train_test_split(X, y, masks, test_size=0.2, random_state=41)
-
-    print(f"Training samples: {len(X_train)}, Validation samples: {len(X_val)}")
-
-    # Create DataLoaders for batch processing
-    def create_data_loader(X, y, masks, batch_size):
-        X_tensor = torch.tensor(X, dtype=torch.float32)
-        y_tensor = torch.tensor(y, dtype=torch.float32)
-        masks_tensor = torch.tensor(masks, dtype=torch.float32)
-        dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor, masks_tensor)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    train_loader = create_data_loader(X_train, y_train, masks_train, BATCH_SIZE)
-    val_loader = create_data_loader(X_val, y_val, masks_val, BATCH_SIZE)
-
-    # Initialize model, loss function, and optimizer
-    model = CNNNetwork().to(device)
-    loss_fn = nn.MSELoss(reduction='none')
-    optimiser = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-
-    try:
-        # Train and validate
-        train_and_validate(model, train_loader, val_loader, loss_fn, optimiser, device, EPOCHS)
-    except RuntimeError as e:
-        print(f"Runtime Error: {e}")
-        print("Ensure the padding length is consistent for all tensors.")
-    finally:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_filename = f"cnn_model_{timestamp}.pth"
-        if not os.path.exists(model_filename):
-            print("Saving model due to final exit.")
-            torch.save(model.state_dict(), model_filename)
-            print(f"Final model saved at {model_filename}")
-
-    wandb.finish()
+    # Perform cross-validation
+    cross_validate(
+        CNNNetwork,
+        dataset,
+        nn.MSELoss(reduction='none'),
+        torch.optim.Adam,
+        device,
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        k=5  # Number of folds
+    )
