@@ -4,6 +4,43 @@ import torchaudio
 from pathlib import Path
 import torch
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+import matplotlib.pyplot as plt
+
+def plot_spectrograms(spin_spectrogram, target_spectrogram, spin_label="Spin", target_label="Target"):
+    """
+    Plot two precomputed spectrograms one above the other.
+
+    Args:
+        spin_spectrogram (torch.Tensor): Precomputed spectrogram for the spin signal (2D tensor).
+        target_spectrogram (torch.Tensor): Precomputed spectrogram for the target signal (2D tensor).
+        spin_label (str): Label for the spin spectrogram.
+        target_label (str): Label for the target spectrogram.
+    """
+    # Ensure the spectrograms are on CPU and converted to numpy for plotting
+    spin_spectrogram = spin_spectrogram.squeeze(0).cpu().numpy()
+    target_spectrogram = target_spectrogram.squeeze(0).cpu().numpy()
+
+    # Plot the spectrograms
+    plt.figure(figsize=(10, 8))
+
+    plt.subplot(2, 1, 1)
+    plt.imshow(spin_spectrogram, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label="Amplitude")
+    plt.title(f"{spin_label} Spectrogram")
+    plt.xlabel("Time")
+    plt.ylabel("Frequency")
+
+    plt.subplot(2, 1, 2)
+    plt.imshow(target_spectrogram, aspect='auto', origin='lower', cmap='viridis')
+    plt.colorbar(label="Amplitude")
+    plt.title(f"{target_label} Spectrogram")
+    plt.xlabel("Time")
+    plt.ylabel("Frequency")
+
+    plt.tight_layout()
+    plt.show()
 
 class CPC1(Dataset):
     def __init__(self,
@@ -48,12 +85,26 @@ class CPC1(Dataset):
         # spin_signal = self._adjust_length_to_target(spin_signal, target_signal)
         
         # Remove the first 2 seconds and last 1 second based on CPC1 guidelines
-        # spin_signal, target_signal = self._cut_timings(spin_signal, target_signal, self.target_sample_rate)
+        spin_signal, target_signal = self._cut_timings(spin_signal, target_signal, self.target_sample_rate)
 
         spin_signal = self.transformation(spin_signal)
         target_signal = self.transformation(target_signal)
-
+        
+        plot_spectrograms(spin_signal, target_signal, spin_label="Spin spectrogram", target_label="Target spectrogram")
+        
+        
+        spin_signal = self._normalize_spectrogram(spin_signal)
+        target_signal = self._normalize_spectrogram(target_signal)
+        
+        plot_spectrograms(spin_signal, target_signal, spin_label="Spin spectrogram after normalization", target_label="Target spectrogram after normalization")  
+        
+        # plot_spectrograms(spin_signal, target_signal, spin_label="Spin spectrogram", target_label="Target spectrogram")
+        # spin_signal = self._normalize_log10(spin_signal)
+        # target_signal = self._normalize_log10(target_signal)
+        # plot_spectrograms(spin_signal, target_signal, spin_label="Spin spectrogram after normalization", target_label="Target spectrogram")
         spin_signal, target_signal = self._pad_to_same_length(spin_signal, target_signal, self.max_length)
+        
+        # plot_spectrograms(spin_signal, target_signal, spin_label="Spin spectrogram after padding", target_label="Target spectrogram after padding")
 
         mask = self._create_mask(spin_signal, self.max_length)
 
@@ -62,8 +113,36 @@ class CPC1(Dataset):
         return {
             "spin": spin_signal,
             "mask": mask,
-            "correctness": correctness / 100.0
+            "correctness": int(correctness) / 100.0
         }
+        
+        
+    def _normalize_spectrogram(self, spectrogram):
+        """
+        Apply log scaling and normalize the spectrogram to have zero mean and unit variance.
+        """
+        spectrogram = torch.clamp(spectrogram, min=1e-10)  # Avoid log(0)
+        log_spectrogram = torch.log10(spectrogram)
+
+        # Global normalization: zero mean, unit variance
+        mean = log_spectrogram.mean()
+        std = log_spectrogram.std()
+        normalized_spectrogram = (log_spectrogram - mean) / std
+
+        return normalized_spectrogram
+            
+    def _normalize_log10(self, spectrogram):
+        """
+        Normalize spectrogram amplitudes to the range [-1, 1] using log10.
+        """
+        spectrogram = torch.clamp(spectrogram, min=1e-10)  # Avoid log(0)
+        log_spectrogram = torch.log10(spectrogram)
+
+        # Normalize to range [-1, 1]
+        min_val = log_spectrogram.min()
+        max_val = log_spectrogram.max()
+        normalized_spectrogram = 2 * (log_spectrogram - min_val) / (max_val - min_val) - 1
+        return normalized_spectrogram
 
     def _resample_if_necessary(self, signal, sample_rate):
         if sample_rate != self.target_sample_rate:
@@ -152,7 +231,7 @@ if __name__ == "__main__":
     scenes_folder = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.test.v1/clarity_CPC1_data/clarity_data/scenes"
     SAMPLE_RATE = 16000
     NUM_SAMPLES = 2421
-    MAX_LENGTH = 263 # 263 or 169
+    MAX_LENGTH = 169 # 263 or 169
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -175,6 +254,7 @@ if __name__ == "__main__":
     )
 
     print(f"Dataset contains {len(dataset)} samples.")
-
-    max_length = dataset.find_max_spectrogram_length()
-    print(f"Maximum spectrogram length in dataset: {max_length}")
+    
+    sample = dataset[1]
+    # max_length = dataset.find_max_spectrogram_length()
+    # print(f"Maximum spectrogram length in dataset: {max_length}")
