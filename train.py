@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import torchaudio
 import wandb
@@ -15,7 +14,7 @@ import time
 
 # Hyperparameters
 BATCH_SIZE = 32
-EPOCHS = 30
+EPOCHS = 300
 LEARNING_RATE = 0.001
 
 # Dataset Parameters
@@ -25,12 +24,6 @@ SCENES_FOLDER = "C:/Users/Codeexia/FinalSemester/CPC1 Data/clarity_CPC1_data.v1_
 
 SAMPLE_RATE = 16000
 NUM_SAMPLES = SAMPLE_RATE * 6
-
-# Set random seeds for reproducibility
-seed = 42
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
 
 # Initialize wandb for experiment tracking
 wandb.init(project="speech-clarity-prediction", entity="codeexia0")
@@ -115,6 +108,14 @@ def cross_validate(model_class, dataset, loss_fn, optimiser_class, device, epoch
     for fold in range(k):
         print(f"Starting Fold {fold + 1}/{k}")
 
+        # Re-initialize wandb for each fold
+        wandb.init(
+            project="speech-clarity-prediction",
+            entity="codeexia0",
+            name=f"Fold_{fold + 1}",
+            tags=[f"fold-{fold + 1}"],
+        )
+
         # Define train and validation indices
         val_start = fold * fold_size
         val_end = val_start + fold_size if fold < k - 1 else n_samples
@@ -142,6 +143,9 @@ def cross_validate(model_class, dataset, loss_fn, optimiser_class, device, epoch
             train_losses.append(train_loss)
             val_losses.append(val_loss)
 
+            # Log results to WandB
+            wandb.log({"train_loss": train_loss, "val_loss": val_loss})
+
             print(f"Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}")
             print("---------------------------")
 
@@ -158,15 +162,26 @@ def cross_validate(model_class, dataset, loss_fn, optimiser_class, device, epoch
         fold_results.append({
             "fold": fold + 1,
             "final_train_loss": train_losses[-1],
-            "final_val_loss": val_losses[-1]
+            "final_val_loss": val_losses[-1],
+            "model_name": fold_model_filename
         })
 
+        # End WandB run for the fold
+        wandb.finish()
+
     print("Cross-validation complete.")
+    # Save summary of all folds to a text file
+    summary_filename = f"cross_validation_summary_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    with open(summary_filename, "w") as summary_file:
+        summary_file.write("Final Results:\n")
+        for result in fold_results:
+            summary_file.write(f"Fold {result['fold']}: Final Train Loss = {result['final_train_loss']:.4f}, Final Validation Loss = {result['final_val_loss']:.4f}, Model Name = {result['model_name']}\n")
+    print(f"Summary of results saved at {summary_filename}")
 
     # Print summary of all folds
     print("\nFinal Results:")
     for result in fold_results:
-        print(f"Fold {result['fold']}: Final Train Loss = {result['final_train_loss']:.4f}, Final Validation Loss = {result['final_val_loss']:.4f}")
+        print(f"Fold {result['fold']}: Final Train Loss = {result['final_train_loss']:.4f}, Final Validation Loss = {result['final_val_loss']:.4f}, Model Name = {result['model_name']}")
 
 
 if __name__ == "__main__":
@@ -193,14 +208,26 @@ if __name__ == "__main__":
         max_length=169,
     )
 
-    # Perform cross-validation
-    cross_validate(
-        CNNNetwork,
-        dataset,
-        nn.MSELoss(reduction='none'),
-        torch.optim.Adam,
-        device,
-        epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        k=5  # Number of folds
-    )
+    # Perform multiple cross-validation runs
+    num_runs = 5  # Number of times to repeat k-fold cross-validation
+    for run in range(num_runs):
+        print(f"Starting Cross-Validation Run {run + 1}/{num_runs}")
+        wandb.init(
+            project="speech-clarity-prediction",
+            entity="codeexia0",
+            name=f"Cross-Validation_Run_{run + 1}",
+            tags=[f"run-{run + 1}"],
+        )
+        cross_validate(
+            CNNNetwork,
+            dataset,
+            nn.MSELoss(reduction='none'),
+            torch.optim.Adam,
+            device,
+            epochs=EPOCHS,
+            batch_size=BATCH_SIZE,
+            k=5  # Number of folds
+        )
+        # Finish run for multiple cross-validation
+        wandb.finish()
+
