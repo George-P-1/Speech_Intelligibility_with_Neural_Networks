@@ -1,3 +1,4 @@
 .venv/
 .vscode/
 hydra_files/
+__pycache__/

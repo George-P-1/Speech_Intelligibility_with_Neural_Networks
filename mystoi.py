@@ -7,15 +7,15 @@ This metric has a monotonic relation with subjective speech intelligibility (act
 
 How to use?
 -----------
-    1. Import the module
-    2. Load clean and speech-in-noise audio files
-    3. Compute STOI value using `compute_stoi()` function
+1. Import the module
+2. Load clean and speech-in-noise audio files
+3. Compute STOI value using `compute_stoi()` function
         - Check function documentation for more details
 
 Dependencies
 ------------
-    1. Numpy
-    2. Scipy - for stft
+1. Numpy
+2. Scipy - for stft
 
 References
 ----------
@@ -49,7 +49,7 @@ BETA = -15                  # Lower signal-to-distortion (SDR) bound in decibels
 
 # SECTION - Functions
 
-def compute_stoi(clean_audio, spin_audio, sampling_rate: int) -> float:
+def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=False) -> float:
     """
     # Short-Time Objective Intelligibility
     Computes STOI by comparing a clean and speech-in-noise audio. 
@@ -130,6 +130,9 @@ def compute_stoi(clean_audio, spin_audio, sampling_rate: int) -> float:
     clean_inter = clean_inter / (np.linalg.norm(clean_inter, axis=2, keepdims=True) + EPS)
     # Correlation
     d_matrix = clean_inter * spin_inter
+
+    if return_d_matrix:
+        return d_matrix
 
     J = clean_inter.shape[1]    # Number of bands
     M = clean_inter.shape[0]    # Total number of frames
