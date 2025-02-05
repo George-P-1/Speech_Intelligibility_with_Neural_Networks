@@ -19,10 +19,10 @@ timestamp = get_timestamp()
 @hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig) -> None:
     # Select which data to preprocess
-    # data_part = 'Train'; cfg_data = cfg.train_path
+    data_part = 'Train'; cfg_data = cfg.train_path
     # data_part = 'Test'; cfg_data = cfg.test_path
     # data_part = 'Train_Independent'; cfg_data = cfg.train_indep_path
-    data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path
+    # data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path
 
     # NOTE - Largest d-matrix length in each data part:
     # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
