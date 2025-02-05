@@ -1,0 +1,19 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE settings
+.vscode/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Data and experiment tracking
+wandb/
