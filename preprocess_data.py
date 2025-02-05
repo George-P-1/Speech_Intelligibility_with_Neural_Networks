@@ -8,6 +8,7 @@ import soundfile as sf
 from scipy.signal import resample
 import numpy as np
 from datetime import datetime
+import time
 
 # Get the timestamp for the current run
 def get_timestamp():
@@ -18,11 +19,13 @@ timestamp = get_timestamp()
 # SECTION - Main code here
 @hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig) -> None:
-    # Select which data to preprocess
-    data_part = 'Train'; cfg_data = cfg.train_path
+    start_time = time.time()  # Start timing
+
+    # NOTE - Select which data to preprocess
+    # data_part = 'Train'; cfg_data = cfg.train_path
     # data_part = 'Test'; cfg_data = cfg.test_path; cfg_results_file = cfg.test_result_path.result_ref_file
     # data_part = 'Train_Independent'; cfg_data = cfg.train_indep_path
-    # data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
+    data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
 
     # NOTE - Largest d-matrix length in each data part:
     # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
@@ -34,19 +37,25 @@ def main(cfg: DictConfig) -> None:
             ref_json = json.load(ref_file)   # Load the JSON file
             print(f"Loaded {len(ref_json)} samples from {cfg_data.ref_file}\n")
             
-             # List to store d-matrix
-            d_matrices = []
-            audiograms = []         # Placeholder for audiogram data
-            correctness_scores = []  # Store correctness values
-
             #SECTION - If test type data, then extract correctness from results JSON file
             # Load correctness JSON file (for test data)
             if data_part == 'Test' or data_part == 'Test_Independent':
                 with open(cfg_results_file, 'r') as test_results_file:
                     correctness_data = json.load(test_results_file)
-                    print(f"Loaded {len(correctness_data)} correctness entries from {cfg_results_file}\n")
+                    print(f"Loaded {len(correctness_data)} entries from {cfg_results_file}\n")
                     assert len(ref_json) == len(correctness_data), "Mismatch in number of entries between ref_file and correctness file!"
             #!SECTION - extract correctness from results JSON file
+
+            #SECTION - Load listener audiogram JSON file
+            with open(cfg_data.listeners_file, 'r') as listener_file:
+                listener_data = json.load(listener_file)
+            print(f"Loaded {len(listener_data)} listener entries from {cfg_data.listeners_file}\n")
+            #!SECTION - Load listener audiogram JSON file
+
+             # List to store d-matrix
+            d_matrices = []
+            correctness_scores = []  # Store correctness values
+            audiograms = []         # Placeholder for audiogram data
 
             # SECTION - Iterate over each sample in the JSON file
             for scene_index, sample in enumerate(ref_json):
@@ -86,7 +95,16 @@ def main(cfg: DictConfig) -> None:
                     # Get correctness value (directly from the corresponding entry)
                     correctness_scores.append(correctness_data[scene_index]["correctness"])
 
-                # TODO - Store audiogram data
+                # Extract and store listener audiogram data
+                # NOTE - Left ear then right ear data is stored into a vector of length 16
+                listener_id = sample["listener"]
+                if listener_id in listener_data:
+                    left_ear = listener_data[listener_id]["audiogram_levels_l"]
+                    right_ear = listener_data[listener_id]["audiogram_levels_r"]
+                    audiogram_vector = np.array(left_ear + right_ear, dtype=np.float32)  # Concatenate both ears
+                    audiograms.append(audiogram_vector)
+                else:
+                    raise Exception(f"Listener ID {listener_id} not found in listener file!")
 
                 # Debug print every 100 samples
                 if scene_index % 200 == 0:
@@ -105,14 +123,22 @@ def main(cfg: DictConfig) -> None:
             correctness_array = np.array(correctness_scores, dtype=np.float32)
             print(f"Shape of correctness_array: {correctness_array.shape}")
 
+            # Convert audiogram data to a NumPy array
+            audiograms_array = np.array(audiograms, dtype=np.float32)
+            print(f"Shape of audiograms_array: {audiograms_array.shape}")
+
             # SECTION - Save to a compressed NumPy file (.npz format)
-            save_path = f"d_matrices_correctness_{data_part}_{timestamp}.npz"
-            np.savez_compressed(save_path, d_matrices=d_matrices_padded, correctness=correctness_array)
-            # np.savez_compressed(save_path, d_matrices=d_matrices_padded, audiograms=audiograms) # For saving audiograms too
+            save_path = f"d_matrices_correctness_audiograms_{data_part}_{timestamp}.npz"
+            np.savez_compressed(save_path, d_matrices=d_matrices_padded, correctness=correctness_array, audiograms=audiograms_array)
             print(f"Preprocessed data saved to {save_path}")
             #!SECTION - Save to a compressed NumPy file (.npz format)
 
         ref_file.close()
+
+        # Record end time and compute duration
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"\nPreprocessing completed in {elapsed_time:.2f} seconds ({elapsed_time/60:.2f} minutes).")
     except FileNotFoundError:
         print(f'File not found: {cfg_data.ref_file}')
         return None

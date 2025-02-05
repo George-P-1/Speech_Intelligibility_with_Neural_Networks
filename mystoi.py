@@ -243,7 +243,6 @@ def reconstruct_signal(the_frames, overlap):
 
     return signal
 
-# STUB
 def remove_silent_frames(clean_audio, spin_audio, dyn_range, true_frame_len, overlap):
     """
     Removes silent frames from clean and spin audio.
