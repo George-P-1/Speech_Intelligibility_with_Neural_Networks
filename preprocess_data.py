@@ -19,10 +19,14 @@ timestamp = get_timestamp()
 @hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig) -> None:
     # Select which data to preprocess
-    data_part = 'Train'; cfg_data = cfg.train_path
+    # data_part = 'Train'; cfg_data = cfg.train_path
     # data_part = 'Test'; cfg_data = cfg.test_path
-    # data_part = 'Train Independent'; cfg_data = cfg.train_indep_path
-    # data_part = 'Test Independent'; cfg_data = cfg.test_indep_path
+    # data_part = 'Train_Independent'; cfg_data = cfg.train_indep_path
+    data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path
+
+    # NOTE - Largest d-matrix length in each data part:
+    # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
+    global_d_matrix_length = 277
 
     # Open training reference JSON file
     try:
@@ -73,11 +77,8 @@ def main(cfg: DictConfig) -> None:
             #!SECTION - Iterate over each sample in the JSON file
 
             # SECTION - Pad d-matrices to the same length
-            # Find the maximum dimension of all d-matrices
-            largest_d_matrix_length = max(d_matrix.shape[0] for d_matrix in d_matrices); print(f"Largest d_matrix length: {largest_d_matrix_length}") # REMOVE_LATER
-            # Pad d-matrices
             d_matrices_padded = np.array([
-                np.pad(d_matrix, ((0, largest_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
+                np.pad(d_matrix, ((0, global_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
                 for d_matrix in d_matrices
             ], dtype=np.float32)
             #!SECTION - Pad d-matrices to the same length
