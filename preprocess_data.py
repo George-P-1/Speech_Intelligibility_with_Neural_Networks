@@ -20,13 +20,13 @@ timestamp = get_timestamp()
 def main(cfg: DictConfig) -> None:
     # Select which data to preprocess
     data_part = 'Train'; cfg_data = cfg.train_path
-    # data_part = 'Test'; cfg_data = cfg.test_path
+    # data_part = 'Test'; cfg_data = cfg.test_path; cfg_results_file = cfg.test_result_path.result_ref_file
     # data_part = 'Train_Independent'; cfg_data = cfg.train_indep_path
-    # data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path
+    # data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
 
     # NOTE - Largest d-matrix length in each data part:
     # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
-    global_d_matrix_length = 277
+    global_d_matrix_length = 277    # To ensure consistent input size for both train and test
 
     # Open training reference JSON file
     try:
@@ -37,6 +37,16 @@ def main(cfg: DictConfig) -> None:
              # List to store d-matrix
             d_matrices = []
             audiograms = []         # Placeholder for audiogram data
+            correctness_scores = []  # Store correctness values
+
+            #SECTION - If test type data, then extract correctness from results JSON file
+            # Load correctness JSON file (for test data)
+            if data_part == 'Test' or data_part == 'Test_Independent':
+                with open(cfg_results_file, 'r') as test_results_file:
+                    correctness_data = json.load(test_results_file)
+                    print(f"Loaded {len(correctness_data)} correctness entries from {cfg_results_file}\n")
+                    assert len(ref_json) == len(correctness_data), "Mismatch in number of entries between ref_file and correctness file!"
+            #!SECTION - extract correctness from results JSON file
 
             # SECTION - Iterate over each sample in the JSON file
             for scene_index, sample in enumerate(ref_json):
@@ -69,6 +79,13 @@ def main(cfg: DictConfig) -> None:
                 # Store d-matrix to array
                 d_matrices.append(d_matrix)
 
+                # Store correctness value (depending on the data part)
+                if data_part == 'Train' or data_part == 'Train_Independent':
+                    correctness_scores.append(sample["correctness"])
+                else:
+                    # Get correctness value (directly from the corresponding entry)
+                    correctness_scores.append(correctness_data[scene_index]["correctness"])
+
                 # TODO - Store audiogram data
 
                 # Debug print every 100 samples
@@ -81,13 +98,16 @@ def main(cfg: DictConfig) -> None:
                 np.pad(d_matrix, ((0, global_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
                 for d_matrix in d_matrices
             ], dtype=np.float32)
+            print(f"Shape of d_matrices_padded: {d_matrices_padded.shape}")
             #!SECTION - Pad d-matrices to the same length
 
-            print(f"Shape of d_matrices_padded: {d_matrices_padded.shape}")
+            # Convert correctness to a NumPy array
+            correctness_array = np.array(correctness_scores, dtype=np.float32)
+            print(f"Shape of correctness_array: {correctness_array.shape}")
 
             # SECTION - Save to a compressed NumPy file (.npz format)
-            save_path = f"d_matrices_{data_part}_{timestamp}.npz"
-            np.savez_compressed(save_path, d_matrices=d_matrices_padded)
+            save_path = f"d_matrices_correctness_{data_part}_{timestamp}.npz"
+            np.savez_compressed(save_path, d_matrices=d_matrices_padded, correctness=correctness_array)
             # np.savez_compressed(save_path, d_matrices=d_matrices_padded, audiograms=audiograms) # For saving audiograms too
             print(f"Preprocessed data saved to {save_path}")
             #!SECTION - Save to a compressed NumPy file (.npz format)

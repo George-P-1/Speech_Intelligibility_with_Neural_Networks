@@ -38,7 +38,8 @@ test_indep_path:
 # LINK - Downloaded from https://github.com/claritychallenge/clarity/tree/main/recipes/cpc1/test_listener_responses
 test_result_path:
   root: ${main_path.root}/Datasets and other Downloads/clarity-recipes-cpc1-test_listener_responses
-  result_ref_file: ${test_result_path.root}/CPC1.test.json              # contains additional information such as the correctness(true intelligibility), hits and response
+  result_ref_file: ${test_result_path.root}/CPC1.test.json        # contains additional information (compared to test.json files) such as the correctness(true intelligibility), hits and response
+  result_indep_ref_file: ${test_result_path.root}/CPC1.test_indep.json        # for open-set track
 
 sample_rate: 10000 # Requirement for computing stoi
 
