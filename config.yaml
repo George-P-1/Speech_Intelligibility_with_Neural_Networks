@@ -1,25 +1,46 @@
 main_path:
   root: C:/Users/George/Desktop/Automatic Control and Robotics/Semester 7/Thesis
 
+train_path:
+  root: ${main_path.root}/Datasets and other Downloads/clarity_CPC1_data.v1_1/clarity_CPC1_data
+  spin_folder: ${train_path.root}/clarity_data/HA_outputs/train           # Speech in Noise audio.
+  scenes_folder: ${train_path.root}/clarity_data/scenes                   # isolated audio files, like clean speech. Using scenes from the training archive folder.
+  ref_file: ${train_path.root}/metadata/CPC1.train.json                   # contains information about listener, corresponding audio files (scenes) and prompts.
+  listeners_file: ${train_path.root}/metadata/listeners.CPC1_train.json   # audiogram information of each listener in training data.
+
 test_path:
   root: ${main_path.root}/Datasets and other Downloads/clarity_CPC1_data.test.v1/clarity_CPC1_data
-  spin_folder: ${test_path.root}/clarity_data/HA_outputs/test           # Speech in Noise audio. 
-  scenes_folder: ${test_path.root}/clarity_data/scenes                  # isolated audio files, like clean speech. Using scenes from the test folder instead of the training archive folder.
-  ref_file: ${test_path.root}/metadata/CPC1.test.json                   # contains information about listener, corresponding audio files (scenes) and prompts.
-  listeners_file: ${test_path.root}/metadata/listeners.CPC1_all.json    # audiogram information of each listener.
+  spin_folder: ${test_path.root}/clarity_data/HA_outputs/test
+  scenes_folder: ${test_path.root}/clarity_data/scenes
+  ref_file: ${test_path.root}/metadata/CPC1.test.json
+  listeners_file: ${test_path.root}/metadata/listeners.CPC1_all.json      # audiogram information of every listener.
 
-# NOTE - Need test_indep? Relevant when training Neural Networks to predict intelligibility. It's for open-set track of CPC1 challenge. This test_independent part of the data set contains listeners that aren't in the regular training set. It is used to test whether model is objective and not subjective to the listeners in the training set.
+# train_indep and test_indep - It's for open-set track of CPC1 challenge. This part of the data set contains listeners that aren't in the regular training set. 
+# It is used to test whether model is objective and not subjective to the listeners in the training set.
 # See: 
 # https://claritychallenge.org/clarity_CPC1_doc/docs/intro#:~:text=The%20challenge%20has%20two%20separate%20but%20related%20tracks
 # https://claritychallenge.org/clarity_CPC1_doc/docs/cpc1_rules#training-and-development:~:text=For-,Track%201,-(closed%2Dset)
 # https://claritychallenge.org/clarity_CPC1_doc/docs/cpc1_data#d10-listener-intelligibility-data
+train_indep_path:
+  root: ${train_path.root}
+  spin_folder: ${train_indep_path.root}/clarity_data/HA_outputs/train
+  scenes_folder: ${train_indep_path.root}/clarity_data/scenes
+  ref_file: ${train_indep_path.root}/metadata/CPC1.train_indep.json
+  listeners_file: ${train_indep_path.root}/metadata/listeners.CPC1_train.json
+
+test_indep_path:
+  root: ${test_path.root}
+  spin_folder: ${test_indep_path.root}/clarity_data/HA_outputs/test
+  scenes_folder: ${test_indep_path.root}/clarity_data/scenes
+  ref_file: ${test_indep_path.root}/metadata/CPC1.test_indep.json
+  listeners_file: ${test_indep_path.root}/metadata/listeners.CPC1_all.json
 
 # LINK - Downloaded from https://github.com/claritychallenge/clarity/tree/main/recipes/cpc1/test_listener_responses
 test_result_path:
   root: ${main_path.root}/Datasets and other Downloads/clarity-recipes-cpc1-test_listener_responses
   result_ref_file: ${test_result_path.root}/CPC1.test.json              # contains additional information such as the correctness(true intelligibility), hits and response
 
-sample_rate: 10000
+sample_rate: 10000 # Requirement for computing stoi
 
 # To change the name of the directory where hydra stores its logs and outputs by default
 hydra:
