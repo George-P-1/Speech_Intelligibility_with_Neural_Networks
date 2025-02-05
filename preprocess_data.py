@@ -18,23 +18,27 @@ timestamp = get_timestamp()
 # SECTION - Main code here
 @hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig) -> None:
-    print(cfg.train_path.ref_file) # REMOVE_LATER
-    
+    # Select which data to preprocess
+    data_part = 'Train'; cfg_data = cfg.train_path
+    # data_part = 'Test'; cfg_data = cfg.test_path
+    # data_part = 'Train Independent'; cfg_data = cfg.train_indep_path
+    # data_part = 'Test Independent'; cfg_data = cfg.test_indep_path
+
     # Open training reference JSON file
     try:
-        with open(cfg.train_path.ref_file, 'r') as ref_file:
+        with open(cfg_data.ref_file, 'r') as ref_file:
             ref_json = json.load(ref_file)   # Load the JSON file
-            print(f"Loaded {len(ref_json)} samples from {cfg.train_path.ref_file}\n")
+            print(f"Loaded {len(ref_json)} samples from {cfg_data.ref_file}\n")
             
              # List to store d-matrix
             d_matrices = []
-            audiograms = []         # Placeholder for audiograms
+            audiograms = []         # Placeholder for audiogram data
 
             # SECTION - Iterate over each sample in the JSON file
-            for scene_index, sample in enumerate(ref_json[0:5]):
+            for scene_index, sample in enumerate(ref_json):
                 # Path of audio files to open, spin and target (HA_Output and target_anechoic)
-                spin_file_path = Path(cfg.train_path.spin_folder) / f"{ref_json[scene_index]['signal']}.wav"
-                target_file_path = Path(cfg.train_path.scenes_folder) / f"{ref_json[scene_index]['scene']}_target_anechoic.wav"
+                spin_file_path = Path(cfg_data.spin_folder) / f"{ref_json[scene_index]['signal']}.wav"
+                target_file_path = Path(cfg_data.scenes_folder) / f"{ref_json[scene_index]['scene']}_target_anechoic.wav"
                 # Opening audio files using soundfile
                 spin, spin_sr = sf.read(spin_file_path)
                 target, target_sr = sf.read(target_file_path)
@@ -56,34 +60,40 @@ def main(cfg: DictConfig) -> None:
                 # Compute d-matrix from mystoi 
                 d_matrix = mystoi.compute_stoi(target, spin, new_sr, return_d_matrix=True)
                 # Shape is (_, 15, 30) where _ is the # of frames which is dependent on the length of the audio signal
-                # and 15 is the number of frequency bands and 30 is the number of time frames
+                # and 15 is the number of frequency bands and 30 is the number of time frames.
             
                 # Store d-matrix to array
                 d_matrices.append(d_matrix)
 
-                # print d-matrix - size and shape
-                print(f"Shape of d-matrix: {d_matrix.shape}")
-                print(f"Size of d-matrix: {d_matrix.size}")
-
                 # TODO - Store audiogram data
 
                 # Debug print every 100 samples
-                if scene_index % 100 == 0:
+                if scene_index % 200 == 0:
                     print(f"Processed {scene_index}/{len(ref_json)} samples...")
             #!SECTION - Iterate over each sample in the JSON file
 
-            # # SECTION - Save to a compressed NumPy file (.npz format)
-            # save_path = f"preprocessed_data_d_matrices_{timestamp}.npz"
-            # if audiograms is not None:
-            #     np.savez_compressed(save_path, d_matrices=d_matrices, audiograms=audiograms)
-            # else:
-            #     np.savez_compressed(save_path, d_matrices=d_matrices)
-            # print(f"Preprocessed data saved to {save_path}")
-            # #!SECTION - Save to a compressed NumPy file (.npz format)
+            # SECTION - Pad d-matrices to the same length
+            # Find the maximum dimension of all d-matrices
+            largest_d_matrix_length = max(d_matrix.shape[0] for d_matrix in d_matrices); print(f"Largest d_matrix length: {largest_d_matrix_length}") # REMOVE_LATER
+            # Pad d-matrices
+            d_matrices_padded = np.array([
+                np.pad(d_matrix, ((0, largest_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
+                for d_matrix in d_matrices
+            ], dtype=np.float32)
+            #!SECTION - Pad d-matrices to the same length
+
+            print(f"Shape of d_matrices_padded: {d_matrices_padded.shape}")
+
+            # SECTION - Save to a compressed NumPy file (.npz format)
+            save_path = f"d_matrices_{data_part}_{timestamp}.npz"
+            np.savez_compressed(save_path, d_matrices=d_matrices_padded)
+            # np.savez_compressed(save_path, d_matrices=d_matrices_padded, audiograms=audiograms) # For saving audiograms too
+            print(f"Preprocessed data saved to {save_path}")
+            #!SECTION - Save to a compressed NumPy file (.npz format)
 
         ref_file.close()
     except FileNotFoundError:
-        print(f'File not found: {cfg.train_path.ref_file}')
+        print(f'File not found: {cfg_data.ref_file}')
         return None
     finally:
         print(f'Finished processing JSON file.')

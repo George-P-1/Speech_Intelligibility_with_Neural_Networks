@@ -2,3 +2,4 @@
 .vscode/
 hydra_files/
 __pycache__/
+*.npz
