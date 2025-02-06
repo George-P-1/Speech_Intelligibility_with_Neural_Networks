@@ -15,12 +15,12 @@ WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
 
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 DATASET_PART = "Train"
-BATCH_SIZE = 32
-EPOCHS = 40
-LEARNING_RATE = 0.0005
-DROPOUT = 0.2
+BATCH_SIZE = 16
+EPOCHS = 30
+LEARNING_RATE = 0.001
+DROPOUT = 0.5
 
-MODEL_ARCHITECTURE = "MLP (input(124650)->4096->2048->1024->512->512->256->1)"
+MODEL_ARCHITECTURE = "MLP (input(124650)->2048->1024->512->256->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -127,7 +127,8 @@ def main() -> None:
     print(f"Training completed in {end_time - start_time:.2f} seconds.")
 
     # Save trained model
-    model_save_path = f"saved_models/speech_intelligibility_mlp_{timestamp}.pth"
+    model_save_path = f"saved_models/speech_intelligibility_mlp_{timestamp}_wandbd_{wandb.run.id}.pth"
+    print(f"WandB Run ID: {wandb.run.id}")
     torch.save(model.state_dict(), model_save_path)
     print("Model saved successfully.")
 

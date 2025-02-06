@@ -1,12 +1,22 @@
 import torch
 from torch.utils.data import Dataset
 import numpy as np
+import torch.nn.functional as F  # For pooling operations
 
 class SpeechIntelligibilityDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, pool_size=(8, 16)):   # Pooling size for (15,30) → (8,16)
         # Load the preprocessed data
         data = np.load(file_path)
-        self.d_matrices = torch.tensor(data["d_matrices"].reshape(len(data["d_matrices"]), -1), dtype=torch.float32)
+        
+        # Convert d_matrices to a PyTorch tensor and reshape to (batch, 277, 15, 30)
+        d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (N, 277, 15, 30)
+
+        # Apply 2D average pooling (Adaptive)
+        d_matrices_pooled = F.adaptive_avg_pool2d(d_matrices, pool_size)  # Shape: (N, 277, 8, 16)
+
+        # Flatten after pooling
+        self.d_matrices = d_matrices_pooled.view(len(d_matrices_pooled), -1)  # Shape: (N, 277*8*16)
+
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
         self.correctness = self.correctness / 100.0  # Normalize correctness values to [0, 1]
 
@@ -14,7 +24,7 @@ class SpeechIntelligibilityDataset(Dataset):
         return len(self.correctness)
 
     def __getitem__(self, idx):
-        d_matrix = torch.tensor(self.d_matrices[idx], dtype=torch.float32).clone().detach()
-        correctness = torch.tensor(self.correctness[idx], dtype=torch.float32).clone().detach()
+        d_matrix = self.d_matrices[idx].clone().detach()
+        correctness = self.correctness[idx].clone().detach()
         return d_matrix, correctness
 
