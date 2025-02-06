@@ -15,16 +15,15 @@ WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
 
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 DATASET_PART = "Train"
-BATCH_SIZE = 32
-EPOCHS = 50
-LEARNING_RATE = 0.001
+BATCH_SIZE = 16
+EPOCHS = 40
+LEARNING_RATE = 0.0005
+DROPOUT = 0.2
 
-MODEL_ARCHITECTURE = "MLP (input(277)->512->256->128->1)"
+MODEL_ARCHITECTURE = "MLP (input(124650)->1024->512->512->256->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
-# # NOTE - Pick a manual seed for randomization (for reproducibility) (Remove when running in for real)
-# torch.manual_seed(22)
 # -----------------------------------------------------------
 
 # WandB configuration
@@ -35,7 +34,8 @@ CONFIG = dict(
     learning_rate=LEARNING_RATE, 
     model_architecture=MODEL_ARCHITECTURE,
     criterion=CRITERION,
-    optimizer=OPTIMIZER)
+    optimizer=OPTIMIZER,
+    dropout=DROPOUT)
 
 
 # Functions ---------------------------------------------------
@@ -57,7 +57,7 @@ def main() -> None:
     dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH) # Instantiate the dataset
 
     # Split into training and validation sets
-    train_size = int(0.8 * len(dataset))
+    train_size = int(0.9 * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
@@ -67,6 +67,7 @@ def main() -> None:
 
     # Instantiate model
     input_size = dataset.d_matrices.shape[1]  # Flattened d-matrix size
+    print(f"\n\n\n\n\nInput size: {input_size}, {dataset.d_matrices.shape}\n\n\n\n\n")
     model = MLP(input_size).to(device)
 
     # Log model architecture to WandB
