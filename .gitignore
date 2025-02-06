@@ -3,3 +3,5 @@
 hydra_files/
 __pycache__/
 *.npz
+wandb/
+*.pth

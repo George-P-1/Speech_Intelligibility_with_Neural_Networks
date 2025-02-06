@@ -10,10 +10,10 @@ import numpy as np
 from datetime import datetime
 import time
 
-# Get the timestamp for the current run
 def get_timestamp():
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Format: YYYY-MM-DD_HH-MM-SS
 
+# Get the timestamp for the current run
 timestamp = get_timestamp()
 
 # SECTION - Main code here

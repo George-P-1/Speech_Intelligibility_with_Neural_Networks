@@ -5,3 +5,4 @@ scipy
 soundfile
 pandas
 matplotlib
+wandb
