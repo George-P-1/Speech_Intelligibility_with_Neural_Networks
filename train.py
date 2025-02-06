@@ -15,12 +15,12 @@ WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
 
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 DATASET_PART = "Train"
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 EPOCHS = 40
 LEARNING_RATE = 0.0005
 DROPOUT = 0.2
 
-MODEL_ARCHITECTURE = "MLP (input(124650)->1024->512->512->256->1)"
+MODEL_ARCHITECTURE = "MLP (input(124650)->4096->2048->1024->512->512->256->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -67,7 +67,6 @@ def main() -> None:
 
     # Instantiate model
     input_size = dataset.d_matrices.shape[1]  # Flattened d-matrix size
-    print(f"\n\n\n\n\nInput size: {input_size}, {dataset.d_matrices.shape}\n\n\n\n\n")
     model = MLP(input_size).to(device)
 
     # Log model architecture to WandB

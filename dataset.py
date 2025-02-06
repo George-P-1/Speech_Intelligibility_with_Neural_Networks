@@ -14,7 +14,7 @@ class SpeechIntelligibilityDataset(Dataset):
         return len(self.correctness)
 
     def __getitem__(self, idx):
-        d_matrix = self.d_matrices[idx].flatten()  # Flatten before feeding into MLP
-        correctness = self.correctness[idx]
-        return torch.tensor(d_matrix, dtype=torch.float32), torch.tensor(correctness, dtype=torch.float32)
+        d_matrix = torch.tensor(self.d_matrices[idx], dtype=torch.float32).clone().detach()
+        correctness = torch.tensor(self.correctness[idx], dtype=torch.float32).clone().detach()
+        return d_matrix, correctness
 
