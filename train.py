@@ -8,6 +8,7 @@ from model import MLP
 import time
 from datetime import datetime
 import wandb
+from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
@@ -15,12 +16,14 @@ WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
 
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 DATASET_PART = "Train"
+TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Test_2025-02-05_22-46-44.npz"
 BATCH_SIZE = 16
 EPOCHS = 30
 LEARNING_RATE = 0.001
 DROPOUT = 0.5
+ADAPTIVE_POOL_SIZE = (7, 14)
 
-MODEL_ARCHITECTURE = "MLP (input(124650)->2048->1024->512->256->1)"
+MODEL_ARCHITECTURE = "MLP (input(35456)->2048->1024->512->256->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -35,7 +38,8 @@ CONFIG = dict(
     model_architecture=MODEL_ARCHITECTURE,
     criterion=CRITERION,
     optimizer=OPTIMIZER,
-    dropout=DROPOUT)
+    dropout=DROPOUT,
+    adaptive_pool_size=ADAPTIVE_POOL_SIZE)
 
 
 # Functions ---------------------------------------------------
@@ -45,7 +49,50 @@ def get_timestamp():
 # Get the timestamp for the current run
 timestamp = get_timestamp()
 
-# SECTION - Main code here
+# Function to evaluate model after training
+def evaluate_model(model, test_dataset_path):
+    print("\nRunning evaluation on test dataset...")
+
+    # Load dataset
+    dataset = SpeechIntelligibilityDataset(test_dataset_path)
+    test_loader = DataLoader(dataset, batch_size=128, shuffle=False)  # Use larger batch size for efficiency
+
+    # Set model to evaluation mode
+    model.eval()
+
+    all_preds, all_targets = [], []
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            outputs = model(inputs).squeeze()
+            all_preds.extend(outputs.cpu().numpy())
+            all_targets.extend(targets.cpu().numpy())
+
+    # Compute Metrics
+    rmse = root_mean_squared_error(all_targets, all_preds)
+    mae = mean_absolute_error(all_targets, all_preds)
+    r2 = r2_score(all_targets, all_preds)
+
+    print(f"Evaluation Results - RMSE: {rmse:.4f}, MAE: {mae:.4f}, R² Score: {r2:.4f}")
+
+    # Log metrics to WandB (same training run)
+    wandb.log({
+        "predictions_vs_targets": wandb.plot.scatter(
+            wandb.Table(data=list(zip(all_targets, all_preds)), columns=["Ground Truth", "Predictions"]),
+            "Ground Truth",
+            "Predictions",
+            title="Predictions vs Targets"
+        )
+    })
+
+    wandb.summary['evaluation_rmse'] = rmse
+    wandb.summary['evaluation_mae'] = mae
+    wandb.summary['evaluation_r2_score'] = r2
+
+# SECTION - Main code here -----------------------------------
 def main() -> None:
     # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -134,6 +181,9 @@ def main() -> None:
 
     # Log final model checkpoint
     wandb.log({"model_path": model_save_path})
+
+    # Evaluate model on test dataset
+    evaluate_model(model, TEST_DATASET_PATH)
 
     # Finish WandB run
     wandb.finish()

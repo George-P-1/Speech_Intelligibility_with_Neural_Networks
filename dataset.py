@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F  # For pooling operations
 
 class SpeechIntelligibilityDataset(Dataset):
-    def __init__(self, file_path, pool_size=(8, 16)):   # Pooling size for (15,30) → (8,16)
+    def __init__(self, file_path, pool_size=(7, 14)):   # Pooling size for (15,30) -> (a,b) which is (8,16) (7,14)
         # Load the preprocessed data
         data = np.load(file_path)
         
@@ -12,10 +12,10 @@ class SpeechIntelligibilityDataset(Dataset):
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (N, 277, 15, 30)
 
         # Apply 2D average pooling (Adaptive)
-        d_matrices_pooled = F.adaptive_avg_pool2d(d_matrices, pool_size)  # Shape: (N, 277, 8, 16)
+        d_matrices_pooled = F.adaptive_avg_pool2d(d_matrices, pool_size)  # Shape: (N, 277, a, b)
 
         # Flatten after pooling
-        self.d_matrices = d_matrices_pooled.view(len(d_matrices_pooled), -1)  # Shape: (N, 277*8*16)
+        self.d_matrices = d_matrices_pooled.view(len(d_matrices_pooled), -1)  # Shape: (N, 277*a*b)
 
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
         self.correctness = self.correctness / 100.0  # Normalize correctness values to [0, 1]
