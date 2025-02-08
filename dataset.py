@@ -10,12 +10,7 @@ class SpeechIntelligibilityDataset(Dataset):
         
         # Convert d_matrices to a PyTorch tensor and reshape to (batch, 277, 15, 30)
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (N, 277, 15, 30)
-
-        # Apply 2D average pooling (Adaptive)
-        d_matrices_pooled = F.adaptive_avg_pool2d(d_matrices, pool_size)  # Shape: (N, 277, a, b)
-
-        # Flatten after pooling
-        self.d_matrices = d_matrices_pooled.view(len(d_matrices_pooled), -1)  # Shape: (N, 277*a*b)
+        masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: same as d_matrices
 
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
         self.correctness = self.correctness / 100.0  # Normalize correctness values to [0, 1]
@@ -25,6 +20,7 @@ class SpeechIntelligibilityDataset(Dataset):
 
     def __getitem__(self, idx):
         d_matrix = self.d_matrices[idx].clone().detach()
+        mask = self.masks[idx].clone().detach()
         correctness = self.correctness[idx].clone().detach()
-        return d_matrix, correctness
+        return d_matrix, mask, correctness
 

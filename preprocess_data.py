@@ -22,10 +22,13 @@ def main(cfg: DictConfig) -> None:
     start_time = time.time()  # Start timing
 
     # NOTE - Select which data to preprocess
-    # data_part = 'Train'; cfg_data = cfg.train_path
-    # data_part = 'Test'; cfg_data = cfg.test_path; cfg_results_file = cfg.test_result_path.result_ref_file
-    # data_part = 'Train_Independent'; cfg_data = cfg.train_indep_path
-    data_part = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
+    # DATA_PART = 'Train'; cfg_data = cfg.train_path; cfg_results_file = None
+    # DATA_PART = 'Test'; cfg_data = cfg.test_path; cfg_results_file = cfg.test_result_path.result_ref_file
+    DATA_PART = 'Train_Independent'; cfg_data = cfg.train_indep_path; cfg_results_file = None
+    # DATA_PART = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
+
+    # NOTE -
+    PREPROCESSED_DATASET_NAME = "d_matrices_masks_correctness_audiograms"
 
     # NOTE - Largest d-matrix length in each data part:
     # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
@@ -39,7 +42,7 @@ def main(cfg: DictConfig) -> None:
             
             #SECTION - If test type data, then extract correctness from results JSON file
             # Load correctness JSON file (for test data)
-            if data_part == 'Test' or data_part == 'Test_Independent':
+            if DATA_PART == 'Test' or DATA_PART == 'Test_Independent':
                 with open(cfg_results_file, 'r') as test_results_file:
                     correctness_data = json.load(test_results_file)
                     print(f"Loaded {len(correctness_data)} entries from {cfg_results_file}\n")
@@ -89,7 +92,7 @@ def main(cfg: DictConfig) -> None:
                 d_matrices.append(d_matrix)
 
                 # Store correctness value (depending on the data part)
-                if data_part == 'Train' or data_part == 'Train_Independent':
+                if DATA_PART == 'Train' or DATA_PART == 'Train_Independent':
                     correctness_scores.append(sample["correctness"])
                 else:
                     # Get correctness value (directly from the corresponding entry)
@@ -111,6 +114,9 @@ def main(cfg: DictConfig) -> None:
                     print(f"Processed {scene_index}/{len(ref_json)} samples...")
             #!SECTION - Iterate over each sample in the JSON file
 
+            # SECTION - Create Masks - Track original sequence lengths before padding
+            original_lengths = [d_matrix.shape[0] for d_matrix in d_matrices]
+
             # SECTION - Pad d-matrices to the same length
             d_matrices_padded = np.array([
                 np.pad(d_matrix, ((0, global_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
@@ -118,6 +124,17 @@ def main(cfg: DictConfig) -> None:
             ], dtype=np.float32)
             print(f"Shape of d_matrices_padded: {d_matrices_padded.shape}")
             #!SECTION - Pad d-matrices to the same length
+
+            # Create a mask where only padded regions are 0
+            masks = np.array([
+                np.pad(np.ones((length, 15, 30), dtype=np.float32),  # Mask for original data
+                    ((0, d_matrices_padded.shape[1] - length), (0, 0), (0, 0)),  # Pad zeros for added regions
+                    mode='constant', constant_values=0)
+                for length in original_lengths
+            ])
+            print(f"Sample Mask Shape: {masks.shape}")  # Should match d_matrices_padded shape
+
+            #!SECTION - Create Masks
 
             # Convert correctness to a NumPy array
             correctness_array = np.array(correctness_scores, dtype=np.float32)
@@ -128,8 +145,8 @@ def main(cfg: DictConfig) -> None:
             print(f"Shape of audiograms_array: {audiograms_array.shape}")
 
             # SECTION - Save to a compressed NumPy file (.npz format)
-            save_path = f"d_matrices_correctness_audiograms_{data_part}_{timestamp}.npz"
-            np.savez_compressed(save_path, d_matrices=d_matrices_padded, correctness=correctness_array, audiograms=audiograms_array)
+            save_path = f"{PREPROCESSED_DATASET_NAME}_{DATA_PART}_{timestamp}.npz"
+            np.savez_compressed(save_path, d_matrices=d_matrices_padded, masks=masks, correctness=correctness_array, audiograms=audiograms_array)
             print(f"Preprocessed data saved to {save_path}")
             #!SECTION - Save to a compressed NumPy file (.npz format)
 

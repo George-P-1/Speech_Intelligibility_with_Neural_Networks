@@ -41,8 +41,8 @@ all_preds, all_targets = [], []
 
 model.eval()    # Set model to evaluation mode
 with torch.no_grad():
-    for inputs, targets in test_loader:
-        inputs, targets = inputs.to(device), targets.to(device)
+    for inputs, masks, targets in test_loader:
+        inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
 
         outputs = model(inputs).squeeze()
         all_preds.extend(outputs.cpu().numpy())

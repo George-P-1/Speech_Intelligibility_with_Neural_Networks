@@ -14,8 +14,8 @@ from torchinfo import summary
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
 
-WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
-PREPROCESSED_DATASET_NAME = "d_matrices_correctness_audiograms"
+WANDB_GROUP_NAME = "mlp-dmatrix-masks-correctness"
+PREPROCESSED_DATASET_NAME = "d_matrices_masks_correctness_audiograms"
 DATASET_PART = "Train"
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Test_2025-02-05_22-46-44.npz"
@@ -72,8 +72,8 @@ def evaluate_model(model, test_dataset_path):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     with torch.no_grad():
-        for inputs, targets in test_loader:
-            inputs, targets = inputs.to(device), targets.to(device)
+        for inputs, masks, targets in test_loader:
+            inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
 
             outputs = model(inputs).squeeze()
             all_preds.extend(outputs.cpu().numpy())
@@ -128,7 +128,7 @@ def main() -> None:
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
-    criterion = nn.MSELoss()  # Regression task
+    criterion = nn.MSELoss(reduction='none')  # Defulat reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -138,14 +138,15 @@ def main() -> None:
         model.train() # Set model to training mode
         total_loss = 0 # Total loss for the epoch
 
-        for batch_idx, (inputs, targets) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
-            inputs, targets = inputs.to(device), targets.to(device).unsqueeze(1) 
+        for batch_idx, (inputs, masks, targets) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
+            inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
             # unsqueeze ensures targets have shape (batch_size, 1) which is required for MLP model
 
-            optimizer.zero_grad()               # Reset gradients
-            outputs = model(inputs)             # Forward pass
-            loss = criterion(outputs, targets)  # Compute loss
-            loss.backward()                     # Backpropagation
+            optimizer.zero_grad()                       # Reset gradients
+            outputs = model(inputs)                     # Forward pass. Outputs are predictions
+            loss = criterion(outputs, targets)          # Compute loss
+            loss = (loss * masks).sum() / masks.sum()   # Apply mask and compute scalar loss
+            loss.backward()                             # Backpropagation
             # grad_norm = torch.sqrt(sum(p.grad.norm()**2 for p in model.parameters() if p.grad is not None)) # Compute gradient norms for wandb logging
             optimizer.step()                    # Update model weights
             total_loss += loss.item()           # Accumulate loss
@@ -160,11 +161,12 @@ def main() -> None:
         model.eval() # Set model to evaluation mode
         val_loss = 0 # Validation loss
         with torch.no_grad():
-            for inputs, targets in val_loader:
-                inputs, targets = inputs.to(device), targets.to(device).unsqueeze(1)
-                outputs = model(inputs)             # Forward pass
-                loss = criterion(outputs, targets)  # Compute validation loss
-                val_loss += loss.item()             # Accumulate validation loss
+            for inputs, masks, targets in val_loader:
+                inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
+                outputs = model(inputs)                     # Forward pass
+                loss = criterion(outputs, targets)          # Compute validation loss
+                loss = (loss * masks).sum() / masks.sum()   # Apply mask to ignore padding
+                val_loss += loss.item()                     # Accumulate validation loss
 
         # Compute average training and validation loss over all batches
         avg_train_loss = total_loss / len(train_loader)
