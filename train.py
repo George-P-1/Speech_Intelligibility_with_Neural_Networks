@@ -39,8 +39,10 @@ TAGS = [
     "normalized-dmatrix-log1p"
     ]
 
-MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
-DROPOUT_ARCHITECTURE = "(input->0.4->0.3->0.2->0.1->0.0->0.0->output)"
+# MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
+# DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
+MODEL_ARCHITECTURE = "MLP (input(4155)->256->256->128->1)"
+DROPOUT_ARCHITECTURE = "(input->0.3->0.0->0.0->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
