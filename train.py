@@ -10,6 +10,8 @@ from datetime import datetime
 import wandb
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 from torchinfo import summary
+import os
+from eval_function import evaluate_model
 
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
@@ -56,49 +58,6 @@ def get_timestamp():
 
 # Get the timestamp for the current run
 timestamp = get_timestamp()
-
-# Function to evaluate model after training
-def evaluate_model(model, test_dataset_path):
-    print("\nRunning evaluation on test dataset...")
-
-    # Load dataset
-    dataset = SpeechIntelligibilityDataset(test_dataset_path)
-    test_loader = DataLoader(dataset, batch_size=128, shuffle=False)  # Use larger batch size for efficiency
-
-    # Set model to evaluation mode
-    model.eval()
-
-    all_preds, all_targets = [], []
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    with torch.no_grad():
-        for inputs, masks, targets in test_loader:
-            inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
-
-            outputs = model(inputs).squeeze()
-            all_preds.extend(outputs.cpu().numpy())
-            all_targets.extend(targets.cpu().numpy())
-
-    # Compute Metrics
-    rmse = root_mean_squared_error(all_targets, all_preds)
-    mae = mean_absolute_error(all_targets, all_preds)
-    r2 = r2_score(all_targets, all_preds)
-
-    print(f"Evaluation Results - RMSE: {rmse:.4f}, MAE: {mae:.4f}, R² Score: {r2:.4f}")
-
-    # Log metrics to WandB (same training run)
-    wandb.log({
-        "predictions_vs_targets": wandb.plot.scatter(
-            wandb.Table(data=list(zip(all_targets, all_preds)), columns=["Ground Truth", "Predictions"]),
-            "Ground Truth",
-            "Predictions",
-            title="Predictions vs Targets"
-        )
-    })
-
-    wandb.summary['evaluation_rmse'] = rmse
-    wandb.summary['evaluation_mae'] = mae
-    wandb.summary['evaluation_r2_score'] = r2
 
 # SECTION - Main code here -----------------------------------
 def main() -> None:
@@ -184,7 +143,10 @@ def main() -> None:
     print(f"Training completed in {end_time - start_time:.2f} seconds.")
 
     # Save trained model
-    model_save_path = f"saved_models/speech_intelligibility_mlp_{timestamp}_wandbd_{wandb.run.id}.pth"
+    # Create folder if it doesn't exist
+    if not os.path.exists("saved_models/{WANDB_GROUP_NAME}"):
+        os.makedirs("saved_models/{WANDB_GROUP_NAME}")
+    model_save_path = f"saved_models/{WANDB_GROUP_NAME}/{WANDB_GROUP_NAME}_{DATASET_PART}_{timestamp}.pth"
     print(f"WandB Run ID: {wandb.run.id}")
     torch.save(model.state_dict(), model_save_path)
     print("Model saved successfully.")
