@@ -9,19 +9,27 @@ import time
 from datetime import datetime
 import wandb
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+from torchinfo import summary
 
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
-WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
 
-DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
+WANDB_GROUP_NAME = "mlp-dmatrix-correctness"
+PREPROCESSED_DATASET_NAME = "d_matrices_correctness_audiograms"
 DATASET_PART = "Train"
+DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Test_2025-02-05_22-46-44.npz"
+
 BATCH_SIZE = 16
 EPOCHS = 30
 LEARNING_RATE = 0.001
 DROPOUT = 0.5
 ADAPTIVE_POOL_SIZE = (7, 14)
+TAGS = [
+    "adaptive_pooling",
+    DATASET_PART,
+    PREPROCESSED_DATASET_NAME
+    ]
 
 MODEL_ARCHITECTURE = "MLP (input(35456)->2048->1024->512->256->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
@@ -98,7 +106,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize WandB
-    wandb.init(project=WANDB_PROJECT_NAME, group=WANDB_GROUP_NAME, config=CONFIG, name=f"run_{timestamp}")
+    wandb.init(project=WANDB_PROJECT_NAME, group=WANDB_GROUP_NAME, tags=TAGS, config=CONFIG, name=f"run_{timestamp}")
 
     # Load dataset
     dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH) # Instantiate the dataset
@@ -184,6 +192,12 @@ def main() -> None:
 
     # Evaluate model on test dataset
     evaluate_model(model, TEST_DATASET_PATH)
+
+    # Print model summary
+    summary(model, input_size=input_size, mode="eval", device="cuda", 
+            col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
+            col_width=16,
+            verbose=1)
 
     # Finish WandB run
     wandb.finish()

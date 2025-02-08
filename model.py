@@ -1,5 +1,6 @@
 import torch.nn as nn
-from torchsummary import summary
+# from torchsummary import summary
+from torchinfo import summary
 
 # NOTE - MLP model
 class MLP(nn.Module):
@@ -30,7 +31,13 @@ class MLP(nn.Module):
         return self.model(x)
 
 if __name__ == "__main__":
+    # Input Size
+    input_size = 35456
     # Instantiate the model
-    model = MLP(35456)
+    model = MLP(input_size)
+    model.eval() # Set model to evaluation mode
     # Print the model summary
-    summary(model.cuda(), (35456,))
+    summary(model, input_size=(input_size,), mode="eval", device="cuda", 
+            col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
+            col_width=16,
+            verbose=1)
