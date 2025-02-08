@@ -22,10 +22,10 @@ DATASET_PART = "Train"
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.001
-DROPOUT = 0.0
+DROPOUT = 'variable'
 # ADAPTIVE_POOL_SIZE = None
 TAGS = [
     # "adaptive_pooling",
@@ -33,10 +33,13 @@ TAGS = [
     PREPROCESSED_DATASET_NAME,
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
-    "divided-dmatrices-by-30"
+    "divided-dmatrices-by-30",
+    "removed-sigmoid",
+    "variable-dropout"
     ]
 
-MODEL_ARCHITECTURE = "MLP (input(4155)->2048->1024->512->256->128->1)"
+MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
+DROPOUT_ARCHITECTURE = "(input->0.4->0.3->0.2->0.1->0.0->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 

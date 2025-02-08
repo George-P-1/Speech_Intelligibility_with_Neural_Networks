@@ -7,28 +7,31 @@ class MLP(nn.Module):
     def __init__(self, input_size):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(input_size, 2048),
+            nn.Linear(input_size, 4096),
             nn.ReLU(),
-            # nn.Dropout(0.3),
             
+            nn.Linear(4096, 2048),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+
             nn.Linear(2048, 1024),
             nn.ReLU(),
-            # nn.Dropout(0.3),
+            nn.Dropout(0.3),
 
             nn.Linear(1024, 512),
             nn.ReLU(),
-            # nn.Dropout(0.3),
+            nn.Dropout(0.2),
 
             nn.Linear(512, 256),
             nn.ReLU(),
-            # nn.Dropout(0.3),
+            nn.Dropout(0.1),
 
             nn.Linear(256, 128),
             nn.ReLU(),
-            # nn.Dropout(0.3),
 
             nn.Linear(128, 1),      # Regression output - Single value output
-            nn.Sigmoid()            # Ensures output is between 0 and 1
+
+            # nn.Sigmoid()            # Ensures output is between 0 and 1
         )
 
     def forward(self, x):
