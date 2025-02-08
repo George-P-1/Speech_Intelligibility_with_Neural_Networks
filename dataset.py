@@ -10,11 +10,12 @@ class SpeechIntelligibilityDataset(Dataset):
         
         # Convert d_matrices to a PyTorch tensor and reshape
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (batch, 277, 15)
+        d_matrices = d_matrices/30.0
         masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: same as d_matrices
 
         # Flatten `d_matrices` to match new input size
-        self.d_matrices = d_matrices.view(len(self.d_matrices), -1)  # Shape: (batch, 277*15 = 4155)
-        self.masks = masks.view(len(self.masks), -1)  # Shape: (batch, 4155)
+        self.d_matrices = d_matrices.view(len(d_matrices), -1)  # Shape: (batch, 277*15 = 4155)
+        self.masks = masks.view(len(masks), -1)  # Shape: (batch, 4155)
 
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
         self.correctness = self.correctness / 100.0  # Normalize correctness values to [0, 1]
@@ -28,3 +29,17 @@ class SpeechIntelligibilityDataset(Dataset):
         correctness = self.correctness[idx].clone().detach()
         return d_matrix, mask, correctness
 
+
+if __name__ == "__main__":
+    # Test the dataset
+    dataset = SpeechIntelligibilityDataset(r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz")
+    print(f"Dataset Length: {len(dataset)}")
+    d_matrix, mask, correctness = dataset[0]
+    print(f"Sample d_matrix shape: {d_matrix.shape}")
+    print(f"Sample mask shape: {mask.shape}")
+    print(f"Sample correctness: {correctness}")
+
+    # Print stuff from getitem
+    print(f"Sample d_matrix: {dataset.__getitem__([0])}")
+    print(f"Sample mask: {dataset.__getitem__([0])}")
+    print(f"Sample correctness: {dataset.__getitem__([0])}")
