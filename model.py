@@ -9,21 +9,25 @@ class MLP(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(input_size, 2048),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # nn.Dropout(0.3),
             
             nn.Linear(2048, 1024),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # nn.Dropout(0.3),
 
             nn.Linear(1024, 512),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # nn.Dropout(0.3),
 
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            # nn.Dropout(0.3),
 
-            nn.Linear(256, 1),      # Regression output - Single value output
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            # nn.Dropout(0.3),
+
+            nn.Linear(128, 1),      # Regression output - Single value output
             nn.Sigmoid()            # Ensures output is between 0 and 1
         )
 

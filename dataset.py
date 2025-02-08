@@ -40,6 +40,6 @@ if __name__ == "__main__":
     print(f"Sample correctness: {correctness}")
 
     # Print stuff from getitem
-    print(f"Sample d_matrix: {dataset.__getitem__([0])}")
-    print(f"Sample mask: {dataset.__getitem__([0])}")
-    print(f"Sample correctness: {dataset.__getitem__([0])}")
+    print(f"Sample d_matrix: {dataset.__getitem__([0])[0]}")
+    print(f"Sample mask: {dataset.__getitem__([0])[1]}")
+    print(f"Sample correctness: {dataset.__getitem__([0])[2]}")

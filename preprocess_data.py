@@ -24,10 +24,10 @@ def main(cfg: DictConfig) -> None:
     # NOTE - Select which data to preprocess
     # DATA_PART = 'Train'; cfg_data = cfg.train_path; cfg_results_file = None
     # DATA_PART = 'Test'; cfg_data = cfg.test_path; cfg_results_file = cfg.test_result_path.result_ref_file
-    DATA_PART = 'Train_Independent'; cfg_data = cfg.train_indep_path; cfg_results_file = None
-    # DATA_PART = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
+    # DATA_PART = 'Train_Independent'; cfg_data = cfg.train_indep_path; cfg_results_file = None
+    DATA_PART = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
 
-    # NOTE -
+    # NOTE - Name of Dataset to create
     PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
 
     # NOTE - Largest d-matrix length in each data part:

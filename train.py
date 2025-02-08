@@ -17,24 +17,26 @@ from eval_function import evaluate_model
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
 
 WANDB_GROUP_NAME = "mlp-dmatrix-masks-correctness"
-PREPROCESSED_DATASET_NAME = "d_matrices_masks_correctness_audiograms"
+PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
 DATASET_PART = "Train"
-DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
-TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Test_2025-02-05_22-46-44.npz"
+DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
+TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
 
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 EPOCHS = 50
 LEARNING_RATE = 0.001
-DROPOUT = 0.3
+DROPOUT = 0.0
+# ADAPTIVE_POOL_SIZE = None
 TAGS = [
     # "adaptive_pooling",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
+    "divided-dmatrices-by-30"
     ]
 
-MODEL_ARCHITECTURE = "MLP (input(35456)->2048->1024->512->256->1)"
+MODEL_ARCHITECTURE = "MLP (input(4155)->2048->1024->512->256->128->1)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -50,7 +52,8 @@ CONFIG = dict(
     criterion=CRITERION,
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
-    adaptive_pool_size=ADAPTIVE_POOL_SIZE)
+    # adaptive_pool_size=ADAPTIVE_POOL_SIZE
+    )
 
 
 # Functions ---------------------------------------------------
@@ -88,7 +91,7 @@ def main() -> None:
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
-    criterion = nn.MSELoss(reduction='none')  # Defulat reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
+    criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -145,8 +148,8 @@ def main() -> None:
 
     # Save trained model
     # Create folder if it doesn't exist
-    if not os.path.exists("saved_models/{WANDB_GROUP_NAME}"):
-        os.makedirs("saved_models/{WANDB_GROUP_NAME}")
+    if not os.path.exists(f"saved_models/{WANDB_GROUP_NAME}"):
+        os.makedirs(f"saved_models/{WANDB_GROUP_NAME}")
     model_save_path = f"saved_models/{WANDB_GROUP_NAME}/{WANDB_GROUP_NAME}_{DATASET_PART}_{timestamp}.pth"
     print(f"WandB Run ID: {wandb.run.id}")
     torch.save(model.state_dict(), model_save_path)
@@ -159,7 +162,7 @@ def main() -> None:
     evaluate_model(model, TEST_DATASET_PATH)
 
     # Print model summary
-    summary(model, input_size=input_size, mode="eval", device="cuda", 
+    summary(model, input_size=(input_size,), mode="eval", device="cuda", 
             col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
             col_width=16,
             verbose=1)
