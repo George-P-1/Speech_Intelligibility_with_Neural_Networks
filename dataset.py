@@ -10,7 +10,8 @@ class SpeechIntelligibilityDataset(Dataset):
         
         # Convert d_matrices to a PyTorch tensor and reshape
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (batch, 277, 15)
-        d_matrices = d_matrices/30.0
+        d_matrices = d_matrices/30.0            # maybe do this in preprocessing
+        d_matrices = np.log1p(d_matrices)       # maybe do this in preprocessing
         masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: same as d_matrices
 
         # Flatten `d_matrices` to match new input size

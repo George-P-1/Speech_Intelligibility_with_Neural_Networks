@@ -35,7 +35,8 @@ TAGS = [
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
     "removed-sigmoid",
-    "variable-dropout"
+    "variable-dropout",
+    "normalized-dmatrix-log1p"
     ]
 
 MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
