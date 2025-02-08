@@ -22,15 +22,16 @@ DATASET_PART = "Train"
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Train_2025-02-05_22-07-04.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_correctness_audiograms\d_matrices_correctness_audiograms_Test_2025-02-05_22-46-44.npz"
 
-BATCH_SIZE = 16
-EPOCHS = 30
+BATCH_SIZE = 32
+EPOCHS = 50
 LEARNING_RATE = 0.001
-DROPOUT = 0.5
-ADAPTIVE_POOL_SIZE = (7, 14)
+DROPOUT = 0.3
 TAGS = [
-    "adaptive_pooling",
+    # "adaptive_pooling",
     DATASET_PART,
-    PREPROCESSED_DATASET_NAME
+    PREPROCESSED_DATASET_NAME,
+    "d-matrix-2d",
+    # "d-matrix-3d-reduced",
     ]
 
 MODEL_ARCHITECTURE = "MLP (input(35456)->2048->1024->512->256->1)"

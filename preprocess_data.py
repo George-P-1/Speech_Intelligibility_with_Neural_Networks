@@ -28,7 +28,7 @@ def main(cfg: DictConfig) -> None:
     # DATA_PART = 'Test_Independent'; cfg_data = cfg.test_indep_path;  cfg_results_file = cfg.test_result_path.result_indep_ref_file
 
     # NOTE -
-    PREPROCESSED_DATASET_NAME = "d_matrices_masks_correctness_audiograms"
+    PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
 
     # NOTE - Largest d-matrix length in each data part:
     # Train: 277, Test: 263, Train Independent: 277, Test Independent: 263
@@ -87,7 +87,12 @@ def main(cfg: DictConfig) -> None:
                 d_matrix = mystoi.compute_stoi(target, spin, new_sr, return_d_matrix=True)
                 # Shape is (_, 15, 30) where _ is the # of frames which is dependent on the length of the audio signal
                 # and 15 is the number of frequency bands and 30 is the number of time frames.
+                # and _ is global_d_matrix_length which is 277
             
+                # Convert d-matrix to 2d by summing over the time axis of 30 elements
+                d_matrix = np.sum(d_matrix, axis=2)
+                # So now shape is (277, 15)
+
                 # Store d-matrix to array
                 d_matrices.append(d_matrix)
 
@@ -115,11 +120,11 @@ def main(cfg: DictConfig) -> None:
             #!SECTION - Iterate over each sample in the JSON file
 
             # SECTION - Create Masks - Track original sequence lengths before padding
-            original_lengths = [d_matrix.shape[0] for d_matrix in d_matrices]
+            original_lengths = [np.array(d_matrix).shape[0] for d_matrix in d_matrices]
 
             # SECTION - Pad d-matrices to the same length
             d_matrices_padded = np.array([
-                np.pad(d_matrix, ((0, global_d_matrix_length - d_matrix.shape[0]), (0, 0), (0, 0)), mode='constant')
+                np.pad(d_matrix, ((0, global_d_matrix_length - np.array(d_matrix).shape[0]), (0, 0)), mode='constant')
                 for d_matrix in d_matrices
             ], dtype=np.float32)
             print(f"Shape of d_matrices_padded: {d_matrices_padded.shape}")
@@ -127,13 +132,12 @@ def main(cfg: DictConfig) -> None:
 
             # Create a mask where only padded regions are 0
             masks = np.array([
-                np.pad(np.ones((length, 15, 30), dtype=np.float32),  # Mask for original data
-                    ((0, d_matrices_padded.shape[1] - length), (0, 0), (0, 0)),  # Pad zeros for added regions
+                np.pad(np.ones((length, 15), dtype=np.float32),  # Mask for original data
+                    ((0, d_matrices_padded.shape[1] - length), (0, 0)),  # Pad zeros for added regions
                     mode='constant', constant_values=0)
                 for length in original_lengths
             ])
             print(f"Sample Mask Shape: {masks.shape}")  # Should match d_matrices_padded shape
-
             #!SECTION - Create Masks
 
             # Convert correctness to a NumPy array

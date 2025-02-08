@@ -58,9 +58,13 @@ def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=Fa
         clean_audio: clean speech (target_anechoic)
         spin_audio: Speech-in-Noise
         sampling_rate (int): Assumes both audios have same sampling rate
+        dm_matrix (bool): If True, returns the intermediate intelligibility measure (d_matrix) instead of STOI value.
 
     Returns:
-        stoi_val (float): A value that has monotonic relation with subjective speech intelligibility (actual listeners score). 
+        stoi_val (float): A value that has monotonic relation with subjective speech intelligibility (actual listeners score).
+
+        NOTE:
+        if dm_matrix is True, then the function returns the intermediate intelligibility measure (d_matrix) instead of STOI value.
         
         Higher STOI value corresponds to better intelligibility.
     """
