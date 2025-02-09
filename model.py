@@ -7,21 +7,17 @@ class MLP(nn.Module):
     def __init__(self, input_size):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(input_size, 256),
+            nn.Linear(input_size, 128),
             # nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.1),
 
-            nn.Linear(256, 128),
+            nn.Linear(128, 32),
             # nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            # nn.Dropout(0.1),
 
-            nn.Linear(128, 128),
-            # nn.BatchNorm1d(128),
-            nn.ReLU(),
-
-            nn.Linear(128, 1),      # Regression output - Single value output
+            nn.Linear(32, 1),      # Regression output - Single value output
 
             nn.Sigmoid()            # Ensures output is between 0 and 1
             # maybe use torch.clamp() instead of sigmoid # torch.clamp(self.model(x), 0, 1)  # Keeps outputs in range [0,1]

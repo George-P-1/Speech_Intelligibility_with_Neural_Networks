@@ -22,11 +22,11 @@ DATASET_PART = "Train"
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
 
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.0001
 DROPOUT = 'variable'
-ADAPTIVE_POOL_SIZE = (50, 10)
+ADAPTIVE_POOL_SIZE = (40, 15)
 TAGS = [
     "adaptive_pooling",
     DATASET_PART,
@@ -42,10 +42,10 @@ TAGS = [
 
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = "MLP (input(500)->256->128->128->1)"
-DROPOUT_ARCHITECTURE = "(input->0.1->->0.1->0.0->output)"
+MODEL_ARCHITECTURE = "MLP (input(500)->128->32->1)"
+DROPOUT_ARCHITECTURE = "(input->0.1->->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
-OPTIMIZER = "Adam"      # Other options: optim.AdamW()
+OPTIMIZER = "AdamW"      # Other options: optim.AdamW()
 
 # -----------------------------------------------------------
 
@@ -100,7 +100,7 @@ def main() -> None:
 
     # NOTE - Define loss function and optimizer
     criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
     start_time = time.time()
