@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import wandb
 from dataset import SpeechIntelligibilityDataset
-from model import MLP
+from model import GRU_Model
 from torch.utils.data import DataLoader
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import kendalltau, pearsonr
@@ -32,9 +32,11 @@ dataset = SpeechIntelligibilityDataset(DATASET_PATH)
 test_loader = DataLoader(dataset, batch_size=16, shuffle=False)
 
 # Load trained model
-input_size = dataset.d_matrices.shape[1]
+# Load trained model
+sequence_length = 277  # Time steps
+feature_dim = dataset.d_matrices.shape[1]  # Should be 15
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = MLP(input_size).to(device)
+model = GRU_Model(input_size=feature_dim).to(device)
 model.load_state_dict(torch.load(MODEL_PATH))
 
 # Evaluate model

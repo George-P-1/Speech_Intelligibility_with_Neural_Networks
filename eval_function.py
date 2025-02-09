@@ -1,17 +1,17 @@
 import torch
 from torch.utils.data import DataLoader, random_split
 from dataset import SpeechIntelligibilityDataset
-from model import MLP
+from model import GRU_Model
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import kendalltau, pearsonr
 import wandb
 
 # Function to evaluate model after training
-def evaluate_model(model, test_dataset_path, pool_size=None, batch_size=128):
+def evaluate_model(model, test_dataset_path, batch_size=128):
     print("\nRunning evaluation on test dataset...")
 
     # Load dataset
-    dataset = SpeechIntelligibilityDataset(test_dataset_path, pool_size)
+    dataset = SpeechIntelligibilityDataset(test_dataset_path)
     test_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  # Use larger batch size for efficiency
 
     # Set model to evaluation mode

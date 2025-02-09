@@ -1,39 +1,48 @@
+import torch
 import torch.nn as nn
 # from torchsummary import summary
 from torchinfo import summary
 
-# NOTE - MLP model
-class MLP(nn.Module):
-    def __init__(self, input_size):
+# NOTE - GRU model
+class GRU_Model(nn.Module):
+    def __init__(self, input_size, hidden_size=128, num_layers=2):
         super().__init__()
-        self.model = nn.Sequential(
-            nn.Linear(input_size, 128),
-            # nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.1),
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
 
-            nn.Linear(128, 32),
-            # nn.BatchNorm1d(256),
-            nn.ReLU(),
-            # nn.Dropout(0.1),
+        # GRU Layer
+        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=True)
 
-            nn.Linear(32, 1),      # Regression output - Single value output
+        # Fully Connected Layer
+        self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU
 
-            nn.Sigmoid()            # Ensures output is between 0 and 1
-            # maybe use torch.clamp() instead of sigmoid # torch.clamp(self.model(x), 0, 1)  # Keeps outputs in range [0,1]
-        )
+        self.sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
 
     def forward(self, x):
-        return self.model(x)
+        # x shape: (batch_size, sequence_length=277, feature_dim=15)
+        packed_output, hidden = self.gru(x)  # Process sequence
+        
+        # If bidirectional, combine forward & backward hidden states
+        if self.gru.bidirectional:
+            final_hidden_state = torch.cat((hidden[-2], hidden[-1]), dim=1)
+        else:
+            final_hidden_state = hidden[-1]
+
+        output = self.fc(final_hidden_state)  # Fully connected layer
+        return self.sigmoid(output)  # Output a single prediction
 
 if __name__ == "__main__":
     # Input Size
-    input_size = 4115  # 277 * 15
+    # Input Settings
+    batch_size = 1  # Used only for model summary
+    sequence_length = 277
+    feature_dim = 15  # Each time step has 15 features
+    # input_size = (277, 15)  # 277 * 15
     # Instantiate the model
-    model = MLP(input_size)
+    model = GRU_Model(input_size=feature_dim)
     model.eval() # Set model to evaluation mode
     # Print the model summary
-    summary(model, input_size=(1, input_size,), mode="eval", device="cuda", 
+    summary(model, input_size=(batch_size, sequence_length, feature_dim), mode="eval", device="cuda", 
             col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
             col_width=16,
             verbose=1)

@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from dataset import SpeechIntelligibilityDataset
-from model import MLP
+from model import GRU_Model
 import time
 from datetime import datetime
 import wandb
@@ -16,7 +16,7 @@ from eval_function import evaluate_model
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
 
-WANDB_GROUP_NAME = "mlp-dmatrix-masks-correctness"
+WANDB_GROUP_NAME = "gru-dmatrix-masks-correctness"
 PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
 
 DATASET_PART = "Train" # -----------------------------------
@@ -29,27 +29,34 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.0001
-DROPOUT = 'variable'
-ADAPTIVE_POOL_SIZE = (40, 15)
+HIDDEN_SIZE = 128
+NUM_LAYERS = 2
+DROPOUT = 'none' # Options: 'none', 'fixed', 'variable'
+# ADAPTIVE_POOL_SIZE = (40, 15)
+
+
 TAGS = [
-    "adaptive_pooling",
+    # "adaptive_pooling",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
     # "removed-sigmoid",
-    "variable-dropout",
+    # "variable-dropout",
     "normalized-dmatrix-log1p",
     # "batch-normalization"
     ]
 
+sequence_length = 277
+feature_dim = 15  # Each time step has 15 features
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = "MLP (input(600)->128->32->1)"
-DROPOUT_ARCHITECTURE = "(input->0.1->->0.0->output)"
+MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(128)->linear->1)"
+# DROPOUT_ARCHITECTURE = "(input->0.1->->0.0->output)"
+
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
-OPTIMIZER = "AdamW"      # Other options: optim.AdamW()
+OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
 # -----------------------------------------------------------
 
@@ -60,11 +67,13 @@ CONFIG = dict(
     epochs=EPOCHS, 
     learning_rate=LEARNING_RATE, 
     model_architecture=MODEL_ARCHITECTURE,
-    dropout_architecture=DROPOUT_ARCHITECTURE,
+    # dropout_architecture=DROPOUT_ARCHITECTURE,
     criterion=CRITERION,
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
-    adaptive_pool_size=ADAPTIVE_POOL_SIZE
+    hidden_size=HIDDEN_SIZE,
+    num_layers=NUM_LAYERS
+    # adaptive_pool_size=ADAPTIVE_POOL_SIZE
     )
 
 
@@ -84,7 +93,7 @@ def main() -> None:
     wandb.init(project=WANDB_PROJECT_NAME, group=WANDB_GROUP_NAME, tags=TAGS, config=CONFIG, name=f"run_{timestamp}")
 
     # Load dataset
-    dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH, ADAPTIVE_POOL_SIZE) # Instantiate the dataset
+    dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH) # Instantiate the dataset
 
     # Split into training and validation sets
     train_size = int(0.9 * len(dataset))
@@ -96,15 +105,16 @@ def main() -> None:
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Instantiate model
-    input_size = dataset.d_matrices.shape[1]  # Flattened d-matrix size
-    model = MLP(input_size).to(device)
+    input_size = dataset.d_matrices.shape[2]  # Flattened d-matrix size
+    print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
+    model = GRU_Model(input_size=input_size, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS).to(device)
 
     # Log model architecture to WandB
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
     criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
-    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
     start_time = time.time()
@@ -120,7 +130,7 @@ def main() -> None:
             optimizer.zero_grad()                       # Reset gradients
             outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
-            loss = (loss * masks).sum() / masks.sum()   # Apply mask and compute scalar loss
+            loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
             loss.backward()                             # Backpropagation
             # grad_norm = torch.sqrt(sum(p.grad.norm()**2 for p in model.parameters() if p.grad is not None)) # Compute gradient norms for wandb logging
             optimizer.step()                    # Update model weights
@@ -140,7 +150,7 @@ def main() -> None:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
                 outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
-                loss = (loss * masks).sum() / masks.sum()   # Apply mask to ignore padding
+                loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
                 val_loss += loss.item()                     # Accumulate validation loss
 
         # Compute average training and validation loss over all batches
@@ -172,17 +182,18 @@ def main() -> None:
     wandb.log({"model_path": model_save_path})
 
     # Evaluate model on test dataset
-    evaluate_model(model, TEST_DATASET_PATH, ADAPTIVE_POOL_SIZE)
+    evaluate_model(model, TEST_DATASET_PATH)
 
     # Print model summary
-    summary(model, input_size=(1, input_size,), mode="eval", device="cuda", 
+    summary(model, input_size=(1, sequence_length, feature_dim), mode="eval", device="cuda", 
             col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
             col_width=16,
             verbose=1)
     
     # Print model details
     print("Model Architecture:", MODEL_ARCHITECTURE)
-    print("Dropout Architecture:", DROPOUT_ARCHITECTURE)
+    if DROPOUT != 'none':
+        print("Dropout Architecture:", DROPOUT_ARCHITECTURE)
 
     # Finish WandB run
     wandb.finish()

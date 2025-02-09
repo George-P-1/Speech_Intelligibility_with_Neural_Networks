@@ -4,25 +4,23 @@ import numpy as np
 import torch.nn.functional as F  # For pooling operations
 
 class SpeechIntelligibilityDataset(Dataset):
-    def __init__(self, file_path, pool_size):
+    def __init__(self, file_path):
         # Load the preprocessed data
         data = np.load(file_path)
         
-        # Convert d_matrices to a PyTorch tensor and reshape
+        # Convert d_matrices to a PyTorch tensor (retain 3D shape for GRU)
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (batch, 277, 15)
+
+        # Apply normalization and log transform
         d_matrices = d_matrices/30.0            # maybe do this in preprocessing
         d_matrices = np.log1p(d_matrices)       # maybe do this in preprocessing
-        if pool_size is not None:
-            d_matrices = F.adaptive_avg_pool2d(d_matrices.unsqueeze(1), pool_size).squeeze(1)
 
-        # masks
-        masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: same as d_matrices
-        if pool_size is not None:
-            masks = F.adaptive_max_pool2d(masks.unsqueeze(1), pool_size).squeeze(1)
+       # Masks (same shape as d_matrices)
+        masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: (batch, 277, 15)
 
-        # Flatten
-        self.d_matrices = d_matrices.view(len(d_matrices), -1)  # Shape: (batch, 277*15 = 4155)
-        self.masks = masks.view(len(masks), -1)  # Shape: (batch, 4155)
+        # Store tensors (KEEP AS 3D, DO NOT FLATTEN)
+        self.d_matrices = d_matrices  # Shape: (batch, 277, 15)
+        self.masks = masks  # Shape: (batch, 277, 15)
 
         # Correctness
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
@@ -42,12 +40,16 @@ if __name__ == "__main__":
     # Test the dataset
     dataset = SpeechIntelligibilityDataset(r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz")
     print(f"Dataset Length: {len(dataset)}")
-    d_matrix, mask, correctness = dataset[0]
+    print(f"Dataset d_matrices shape: {dataset.d_matrices.shape}")
+    print(f"Dataset masks shape: {dataset.masks.shape}")
+    print(f"Dataset correctness shape: {dataset.correctness.shape}")
+    idx = 1
+    d_matrix, mask, correctness = dataset[idx]
     print(f"Sample d_matrix shape: {d_matrix.shape}")
     print(f"Sample mask shape: {mask.shape}")
-    print(f"Sample correctness: {correctness}")
+    print(f"Sample correctness: {correctness}\n")
 
     # Print stuff from getitem
-    print(f"Sample d_matrix: {dataset.__getitem__([0])[0]}")
-    print(f"Sample mask: {dataset.__getitem__([0])[1]}")
-    print(f"Sample correctness: {dataset.__getitem__([0])[2]}")
+    print(f"Sample d_matrix: {dataset.__getitem__([idx])[0]}")
+    print(f"Sample mask: {dataset.__getitem__([idx])[1]}")
+    print(f"Sample correctness: {dataset.__getitem__([idx])[2]}")
