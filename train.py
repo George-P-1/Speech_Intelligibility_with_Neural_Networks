@@ -18,9 +18,13 @@ WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
 
 WANDB_GROUP_NAME = "mlp-dmatrix-masks-correctness"
 PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
-DATASET_PART = "Train"
+
+DATASET_PART = "Train" # -----------------------------------
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
+# DATASET_PART = "Train_indep" # -----------------------------------
+# DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_Independent_2025-02-08_17-56-28.npz"
+# TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-08_18-56-28.npz"
 
 BATCH_SIZE = 16
 EPOCHS = 50
@@ -162,6 +166,7 @@ def main() -> None:
     print(f"WandB Run ID: {wandb.run.id}")
     torch.save(model.state_dict(), model_save_path)
     print("Model saved successfully.")
+    print(f"Model saved to: {model_save_path}")
 
     # Log final model checkpoint
     wandb.log({"model_path": model_save_path})
