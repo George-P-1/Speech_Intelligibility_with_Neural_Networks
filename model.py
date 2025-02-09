@@ -10,14 +10,14 @@ class MLP(nn.Module):
             nn.Linear(input_size, 256),
             # nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Dropout(0.3),
-
-            nn.Linear(256, 256),
-            # nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.1),
 
             nn.Linear(256, 128),
+            # nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+
+            nn.Linear(128, 128),
             # nn.BatchNorm1d(128),
             nn.ReLU(),
 

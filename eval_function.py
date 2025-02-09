@@ -47,6 +47,16 @@ def evaluate_model(model, test_dataset_path):
             title="Predictions vs Targets"
         )
     })
+    # Log histogram of predicted scores
+    wandb.log({"pred_histogram": wandb.plot.histogram(
+        wandb.Table(data=[[p] for p in all_preds], columns=["Predicted Scores"]),
+        "Predicted Scores", title="Distribution of Predicted Intelligibility"
+    )})
+    # Log histogram of true scores
+    wandb.log({"true_histogram": wandb.plot.histogram(
+        wandb.Table(data=[[t] for t in all_targets], columns=["True Scores"]),
+        "True Scores", title="Distribution of True Intelligibility"
+    )})
 
     wandb.summary['evaluation_rmse'] = rmse
     wandb.summary['evaluation_mae'] = mae

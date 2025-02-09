@@ -26,9 +26,9 @@ BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.001
 DROPOUT = 'variable'
-# ADAPTIVE_POOL_SIZE = None
+ADAPTIVE_POOL_SIZE = (50, 10)
 TAGS = [
-    # "adaptive_pooling",
+    "adaptive_pooling",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
     "d-matrix-2d",
@@ -42,8 +42,8 @@ TAGS = [
 
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = "MLP (input(4155)->256->256->128->1)"
-DROPOUT_ARCHITECTURE = "(input->0.3->->0.2->0.0->output)"
+MODEL_ARCHITECTURE = "MLP (input(500)->256->128->128->1)"
+DROPOUT_ARCHITECTURE = "(input->0.1->->0.1->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -60,7 +60,7 @@ CONFIG = dict(
     criterion=CRITERION,
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
-    # adaptive_pool_size=ADAPTIVE_POOL_SIZE
+    adaptive_pool_size=ADAPTIVE_POOL_SIZE
     )
 
 
