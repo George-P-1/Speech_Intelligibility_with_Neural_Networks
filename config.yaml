@@ -23,14 +23,14 @@ test_path:
 # https://claritychallenge.org/clarity_CPC1_doc/docs/cpc1_data#d10-listener-intelligibility-data
 train_indep_path:
   root: ${train_path.root}
-  spin_folder: ${train_indep_path.root}/clarity_data/HA_outputs/train
+  spin_folder: ${train_indep_path.root}/clarity_data/HA_outputs/train_indep
   scenes_folder: ${train_indep_path.root}/clarity_data/scenes
   ref_file: ${train_indep_path.root}/metadata/CPC1.train_indep.json
   listeners_file: ${train_indep_path.root}/metadata/listeners.CPC1_train.json
 
 test_indep_path:
   root: ${test_path.root}
-  spin_folder: ${test_indep_path.root}/clarity_data/HA_outputs/test
+  spin_folder: ${test_indep_path.root}/clarity_data/HA_outputs/test_indep
   scenes_folder: ${test_indep_path.root}/clarity_data/scenes
   ref_file: ${test_indep_path.root}/metadata/CPC1.test_indep.json
   listeners_file: ${test_indep_path.root}/metadata/listeners.CPC1_all.json
