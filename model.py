@@ -5,13 +5,13 @@ from torchinfo import summary
 
 # NOTE - GRU model
 class GRU_Model(nn.Module):
-    def __init__(self, input_size, hidden_size=128, num_layers=2):
+    def __init__(self, input_size, hidden_size=128, num_layers=2, bidirectional=True):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
         # GRU Layer
-        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=True)
+        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=bidirectional)
 
         # Fully Connected Layer
         self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU
@@ -29,7 +29,9 @@ class GRU_Model(nn.Module):
             final_hidden_state = hidden[-1]
 
         output = self.fc(final_hidden_state)  # Fully connected layer
-        return self.sigmoid(output)  # Output a single prediction
+        output = self.sigmoid(output)  # Sigmoid activation
+        # output = torch.clamp(output, min=0, max=1)
+        return output
 
 if __name__ == "__main__":
     # Input Size

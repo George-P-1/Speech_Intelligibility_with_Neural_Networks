@@ -27,13 +27,13 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 # TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-09_16-23-47.npz"
 
 BATCH_SIZE = 16
-EPOCHS = 50
-LEARNING_RATE = 0.0001
+EPOCHS = 30
+LEARNING_RATE = 0.001
 HIDDEN_SIZE = 128
 NUM_LAYERS = 2
-DROPOUT = 'none' # Options: 'none', 'fixed', 'variable'
+BIDIRECTIONAL = True
+DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 # ADAPTIVE_POOL_SIZE = (40, 15)
-
 
 TAGS = [
     # "adaptive_pooling",
@@ -43,6 +43,10 @@ TAGS = [
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
     # "removed-sigmoid",
+    "sigmoid-last-layer",
+    # "ReLU-last-layer",
+    # "torch-clamp",
+    # "no-last-layer-activation",
     # "variable-dropout",
     "normalized-dmatrix-log1p",
     # "batch-normalization"
@@ -52,8 +56,8 @@ sequence_length = 277
 feature_dim = 15  # Each time step has 15 features
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(128)->linear->1)"
-# DROPOUT_ARCHITECTURE = "(input->0.1->->0.0->output)"
+MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(128)->GRU(128)->linear->1)"
+DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
@@ -67,12 +71,13 @@ CONFIG = dict(
     epochs=EPOCHS, 
     learning_rate=LEARNING_RATE, 
     model_architecture=MODEL_ARCHITECTURE,
-    # dropout_architecture=DROPOUT_ARCHITECTURE,
+    dropout_architecture=DROPOUT_ARCHITECTURE,
     criterion=CRITERION,
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
     hidden_size=HIDDEN_SIZE,
-    num_layers=NUM_LAYERS
+    num_layers=NUM_LAYERS,
+    BIDIRECTIONAL=BIDIRECTIONAL
     # adaptive_pool_size=ADAPTIVE_POOL_SIZE
     )
 
@@ -107,7 +112,7 @@ def main() -> None:
     # Instantiate model
     input_size = dataset.d_matrices.shape[2]  # Flattened d-matrix size
     print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
-    model = GRU_Model(input_size=input_size, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS).to(device)
+    model = GRU_Model(input_size=input_size, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, bidirectional=BIDIRECTIONAL).to(device)
 
     # Log model architecture to WandB
     wandb.watch(model)
@@ -163,7 +168,7 @@ def main() -> None:
             "epoch_train_loss": avg_train_loss,     # average training loss over all batches
             "epoch_val_loss": avg_val_loss})        # average validation loss over all batches
 
-        print(f"Epoch [{epoch+1}], Epoch Train Loss: {avg_train_loss}, Epoch Val Loss: {avg_val_loss}")
+        print(f"Epoch [{epoch+1}], Epoch Train Loss: {avg_train_loss:.8f}, Epoch Val Loss: {avg_val_loss:.8f}")
 
     end_time = time.time()
     print(f"Training completed in {end_time - start_time:.2f} seconds.")
