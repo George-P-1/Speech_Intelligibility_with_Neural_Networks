@@ -23,8 +23,8 @@ DATASET_PART = "Train" # -----------------------------------
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
 # DATASET_PART = "Train_indep" # -----------------------------------
-# DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_Independent_2025-02-08_17-56-28.npz"
-# TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-08_18-56-28.npz"
+# DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_Independent_2025-02-09_16-26-28.npz"
+# TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-09_16-23-47.npz"
 
 BATCH_SIZE = 16
 EPOCHS = 50
@@ -46,7 +46,7 @@ TAGS = [
 
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = "MLP (input(500)->128->32->1)"
+MODEL_ARCHITECTURE = "MLP (input(600)->128->32->1)"
 DROPOUT_ARCHITECTURE = "(input->0.1->->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "AdamW"      # Other options: optim.AdamW()
