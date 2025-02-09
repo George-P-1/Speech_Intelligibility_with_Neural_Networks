@@ -34,15 +34,16 @@ TAGS = [
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
-    "removed-sigmoid",
+    # "removed-sigmoid",
     "variable-dropout",
-    "normalized-dmatrix-log1p"
+    "normalized-dmatrix-log1p",
+    # "batch-normalization"
     ]
 
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
 MODEL_ARCHITECTURE = "MLP (input(4155)->256->256->128->1)"
-DROPOUT_ARCHITECTURE = "(input->0.3->0.0->0.0->0.0->output)"
+DROPOUT_ARCHITECTURE = "(input->0.3->->0.2->0.0->output)"
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 
@@ -55,6 +56,7 @@ CONFIG = dict(
     epochs=EPOCHS, 
     learning_rate=LEARNING_RATE, 
     model_architecture=MODEL_ARCHITECTURE,
+    dropout_architecture=DROPOUT_ARCHITECTURE,
     criterion=CRITERION,
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
@@ -168,10 +170,14 @@ def main() -> None:
     evaluate_model(model, TEST_DATASET_PATH)
 
     # Print model summary
-    summary(model, input_size=(input_size,), mode="eval", device="cuda", 
+    summary(model, input_size=(1, input_size,), mode="eval", device="cuda", 
             col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
             col_width=16,
             verbose=1)
+    
+    # Print model details
+    print("Model Architecture:", MODEL_ARCHITECTURE)
+    print("Dropout Architecture:", DROPOUT_ARCHITECTURE)
 
     # Finish WandB run
     wandb.finish()
