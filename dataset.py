@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn.functional as F  # For pooling operations
 
 class SpeechIntelligibilityDataset(Dataset):
-    def __init__(self, file_path):
+    def __init__(self, file_path, pool_size):
         # Load the preprocessed data
         data = np.load(file_path)
         
@@ -12,11 +12,13 @@ class SpeechIntelligibilityDataset(Dataset):
         d_matrices = torch.tensor(data["d_matrices"], dtype=torch.float32)  # Shape: (batch, 277, 15)
         d_matrices = d_matrices/30.0            # maybe do this in preprocessing
         d_matrices = np.log1p(d_matrices)       # maybe do this in preprocessing
-        d_matrices = F.adaptive_avg_pool2d(d_matrices.unsqueeze(1), (50, 10)).squeeze(1)
+        if pool_size is not None:
+            d_matrices = F.adaptive_avg_pool2d(d_matrices.unsqueeze(1), pool_size).squeeze(1)
 
         # masks
         masks = torch.tensor(data["masks"], dtype=torch.float32)  # Shape: same as d_matrices
-        masks = F.adaptive_max_pool2d(masks.unsqueeze(1), (50, 10)).squeeze(1)
+        if pool_size is not None:
+            masks = F.adaptive_max_pool2d(masks.unsqueeze(1), pool_size).squeeze(1)
 
         # Flatten
         self.d_matrices = d_matrices.view(len(d_matrices), -1)  # Shape: (batch, 277*15 = 4155)

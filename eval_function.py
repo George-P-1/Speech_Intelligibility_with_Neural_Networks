@@ -7,11 +7,11 @@ from scipy.stats import kendalltau, pearsonr
 import wandb
 
 # Function to evaluate model after training
-def evaluate_model(model, test_dataset_path):
+def evaluate_model(model, test_dataset_path, pool_size=None):
     print("\nRunning evaluation on test dataset...")
 
     # Load dataset
-    dataset = SpeechIntelligibilityDataset(test_dataset_path)
+    dataset = SpeechIntelligibilityDataset(test_dataset_path, pool_size)
     test_loader = DataLoader(dataset, batch_size=128, shuffle=False)  # Use larger batch size for efficiency
 
     # Set model to evaluation mode

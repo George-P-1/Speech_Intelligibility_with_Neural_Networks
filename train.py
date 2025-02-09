@@ -22,9 +22,9 @@ DATASET_PART = "Train"
 DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_2025-02-08_18-28-50.npz"
 TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_2025-02-08_18-47-23.npz"
 
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 EPOCHS = 50
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 DROPOUT = 'variable'
 ADAPTIVE_POOL_SIZE = (50, 10)
 TAGS = [
@@ -80,7 +80,7 @@ def main() -> None:
     wandb.init(project=WANDB_PROJECT_NAME, group=WANDB_GROUP_NAME, tags=TAGS, config=CONFIG, name=f"run_{timestamp}")
 
     # Load dataset
-    dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH) # Instantiate the dataset
+    dataset = SpeechIntelligibilityDataset(DATASET_FILE_PATH, ADAPTIVE_POOL_SIZE) # Instantiate the dataset
 
     # Split into training and validation sets
     train_size = int(0.9 * len(dataset))
@@ -167,7 +167,7 @@ def main() -> None:
     wandb.log({"model_path": model_save_path})
 
     # Evaluate model on test dataset
-    evaluate_model(model, TEST_DATASET_PATH)
+    evaluate_model(model, TEST_DATASET_PATH, ADAPTIVE_POOL_SIZE)
 
     # Print model summary
     summary(model, input_size=(1, input_size,), mode="eval", device="cuda", 
