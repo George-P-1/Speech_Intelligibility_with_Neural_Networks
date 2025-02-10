@@ -37,7 +37,7 @@ DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 
 TAGS = [
     # "adaptive_pooling",
-    "modified-masking-logic",
+    # "modified-masking-logic",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
     "d-matrix-2d",
@@ -62,7 +62,7 @@ DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
-MASKING_LOGIC = "frame_masks"
+MASKING_LOGIC = "regular"
 
 # -----------------------------------------------------------
 
@@ -138,22 +138,23 @@ def main() -> None:
             optimizer.zero_grad()                       # Reset gradients
             outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
-            # Apply mask properly: Use mean over sequence dimension (277)
-            if batch_idx % 100 == 0: # Check shapes every few batches
-                print("Before mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
-            # masks = masks.mean(dim=(1, 2), keepdim=True)  # Shape: (batch_size, 1), ensures mask matches loss shape
             
-            # Create a mask where each frame is 1 if at least one feature is nonzero, else 0
-            masks = masks.sum(dim=2) > 0  # Shape: (batch_size, sequence_length)
-            # Average over time dimension to match the loss shape
-            masks = masks.float().mean(dim=1, keepdim=True)  # Shape: (batch_size, 1)
-            
-            if batch_idx % 100 == 0: # Check shapes every few batches
-                print("After mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
-            # Apply mask to loss (only consider valid sequences)
-            loss = (loss * masks).sum() / masks.sum()
-            if batch_idx % 100 == 0: # Check shapes every few batches
-                print("After loss Calculation: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
+            # SECTION - Apply mask
+
+            loss = loss.expand(-1, 277)  # Expands loss to (batch_size, 277)
+            # Check values and shapes
+            if batch_idx % 100 == 0:
+                print("Loss Shape:", loss.shape) # Loss Shape: torch.Size([16, 1])
+                # print("Loss:", loss)
+                print("Masks Shape:", masks.shape)  # Masks Shape: torch.Size([16, 277, 15])
+                print("Masks mean:", masks.mean(dim=2).shape)  # Masks mean: torch.Size([16, 277])
+                print("Masks sum:", masks.sum())    # Masks sum: tensor(33075., device='cuda:0')    values not valid for all batches and samples
+                print("Loss *Masks mean sum:", (loss * masks.mean(dim=2)).sum())    # Loss *Masks mean sum: tensor(53.1478, device='cuda:0', grad_fn=<SumBackward0>)
+
+            loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
+
+            #!SECTION - Apply mask
+
             loss.backward()                             # Backpropagation
             # grad_norm = torch.sqrt(sum(p.grad.norm()**2 for p in model.parameters() if p.grad is not None)) # Compute gradient norms for wandb logging
             optimizer.step()                    # Update model weights
@@ -173,16 +174,11 @@ def main() -> None:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
                 outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
-                # Apply mask properly: Use mean over sequence dimension (277)
-                # masks = masks.mean(dim=(1, 2), keepdim=True)  # Shape: (batch_size, 1), ensures mask matches loss shape
+                
+                # SECTION - Apply mask
+                loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
+                #!SECTION - Apply mask
 
-                # Create a mask where each frame is 1 if at least one feature is nonzero, else 0
-                masks = masks.sum(dim=2) > 0  # Shape: (batch_size, sequence_length)
-                # Average over time dimension to match the loss shape
-                masks = masks.float().mean(dim=1, keepdim=True)  # Shape: (batch_size, 1)
-
-                # Apply mask to loss (only consider valid sequences)
-                loss = (loss * masks).sum() / masks.sum()
                 val_loss += loss.item()                     # Accumulate validation loss
 
         # Compute average training and validation loss over all batches
