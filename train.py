@@ -26,7 +26,7 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 # DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_Independent_2025-02-09_16-26-28.npz"
 # TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-09_16-23-47.npz"
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 EPOCHS = 30
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 128
@@ -62,7 +62,7 @@ DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
-MASKING_LOGIC = "model.py-masking"
+MASKING_LOGIC = "frame_masks"
 
 # -----------------------------------------------------------
 
@@ -121,7 +121,7 @@ def main() -> None:
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
-    criterion = nn.MSELoss(reduction='mean')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
+    criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -135,36 +135,25 @@ def main() -> None:
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
             # unsqueeze ensures targets have shape (batch_size, 1) which is required for MLP model
 
-            # Compute actual sequence lengths
-            sequence_lengths = (masks.sum(dim=2) > 0).sum(dim=1).long()  # Shape: (batch_size,)
-            if batch_idx % 100 == 0: # Check shapes every few batches # REMOVE_LATER
-                print("Sequence Lengths Shape:", sequence_lengths.shape)
-                print("Sequence Lengths:", sequence_lengths)
-                print("Input Shape:", inputs.shape)
-
             optimizer.zero_grad()                       # Reset gradients
-            outputs = model(inputs, sequence_lengths)                     # Forward pass. Outputs are predictions
+            outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
+            # Apply mask properly: Use mean over sequence dimension (277)
+            if batch_idx % 100 == 0: # Check shapes every few batches
+                print("Before mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
+            # masks = masks.mean(dim=(1, 2), keepdim=True)  # Shape: (batch_size, 1), ensures mask matches loss shape
             
-            # SECTION - Apply masking logic
-            # # Apply mask properly: Use mean over sequence dimension (277)
-            # if batch_idx % 100 == 0: # Check shapes every few batches
-            #     print("Before mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
-            # # masks = masks.mean(dim=(1, 2), keepdim=True)  # Shape: (batch_size, 1), ensures mask matches loss shape
+            # Create a mask where each frame is 1 if at least one feature is nonzero, else 0
+            masks = masks.sum(dim=2) > 0  # Shape: (batch_size, sequence_length)
+            # Average over time dimension to match the loss shape
+            masks = masks.float().mean(dim=1, keepdim=True)  # Shape: (batch_size, 1)
             
-            # # Create a mask where each frame is 1 if at least one feature is nonzero, else 0
-            # masks = masks.sum(dim=2) > 0  # Shape: (batch_size, sequence_length)
-            # # Average over time dimension to match the loss shape
-            # masks = masks.float().mean(dim=1, keepdim=True)  # Shape: (batch_size, 1)
-            
-            # if batch_idx % 100 == 0: # Check shapes every few batches
-            #     print("After mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
-            # # Apply mask to loss (only consider valid sequences)
-            # loss = (loss * masks).sum() / masks.sum()
-            # if batch_idx % 100 == 0: # Check shapes every few batches
-            #     print("After loss Calculation: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
-            #!SECTION - Apply masking logic
-            
+            if batch_idx % 100 == 0: # Check shapes every few batches
+                print("After mask modification: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
+            # Apply mask to loss (only consider valid sequences)
+            loss = (loss * masks).sum() / masks.sum()
+            if batch_idx % 100 == 0: # Check shapes every few batches
+                print("After loss Calculation: Masks Shape:", masks.shape, "Loss Shape:", loss.shape)  # REMOVE_LATER - to see if shapes match
             loss.backward()                             # Backpropagation
             # grad_norm = torch.sqrt(sum(p.grad.norm()**2 for p in model.parameters() if p.grad is not None)) # Compute gradient norms for wandb logging
             optimizer.step()                    # Update model weights
@@ -182,14 +171,8 @@ def main() -> None:
         with torch.no_grad():
             for inputs, masks, targets in val_loader:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
-
-                # Compute actual sequence lengths
-                sequence_lengths = masks.sum(dim=(1, 2)).long()  # Shape: (batch_size,)
-
-                outputs = model(inputs, sequence_lengths)       # Forward pass
+                outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
-                
-                # SECTION - Apply masking logic
                 # Apply mask properly: Use mean over sequence dimension (277)
                 # masks = masks.mean(dim=(1, 2), keepdim=True)  # Shape: (batch_size, 1), ensures mask matches loss shape
 
@@ -200,8 +183,6 @@ def main() -> None:
 
                 # Apply mask to loss (only consider valid sequences)
                 loss = (loss * masks).sum() / masks.sum()
-                #!SECTION - Apply masking logic
-
                 val_loss += loss.item()                     # Accumulate validation loss
 
         # Compute average training and validation loss over all batches
@@ -235,11 +216,11 @@ def main() -> None:
     # Evaluate model on test dataset
     evaluate_model(model, TEST_DATASET_PATH)
 
-    # # Print model summary
-    # summary(model, input_size=(1, sequence_length, feature_dim), mode="eval", device="cuda", 
-    #         col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
-    #         col_width=16,
-    #         verbose=1)
+    # Print model summary
+    summary(model, input_size=(1, sequence_length, feature_dim), mode="eval", device="cuda", 
+            col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
+            col_width=16,
+            verbose=1)
     
     # Print model details
     print("Model Architecture:", MODEL_ARCHITECTURE)
