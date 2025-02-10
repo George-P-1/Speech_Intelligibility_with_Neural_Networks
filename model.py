@@ -7,17 +7,17 @@ class MLP(nn.Module):
     def __init__(self, input_size):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(input_size, 128),
+            nn.Linear(input_size, 128),     # (batch_size, 600) -> (batch_size, 128)    # 600 when (277, 15)->(40, 15) adaptive pooling is used
             # nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.1),
 
-            nn.Linear(128, 32),
+            nn.Linear(128, 32),             # (batch_size, 128) -> (batch_size, 32)
             # nn.BatchNorm1d(256),
             nn.ReLU(),
             # nn.Dropout(0.1),
 
-            nn.Linear(32, 1),      # Regression output - Single value output
+            nn.Linear(32, 1),       # Single value output    # (batch_size, 32) -> (batch_size, 1)
 
             nn.Sigmoid()            # Ensures output is between 0 and 1
             # maybe use torch.clamp() instead of sigmoid # torch.clamp(self.model(x), 0, 1)  # Keeps outputs in range [0,1]
