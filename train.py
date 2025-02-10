@@ -31,7 +31,7 @@ EPOCHS = 30
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 128
 NUM_LAYERS = 2
-BIDIRECTIONAL = False
+BIDIRECTIONAL = True
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 # ADAPTIVE_POOL_SIZE = (40, 15)
 
@@ -113,7 +113,7 @@ def main() -> None:
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Instantiate model
-    input_size = dataset.d_matrices.shape[2]  # Flattened d-matrix size
+    input_size = dataset.d_matrices.shape[2]  # d-matrix size
     print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
     model = GRU_Model(input_size=input_size, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, bidirectional=BIDIRECTIONAL).to(device)
 
