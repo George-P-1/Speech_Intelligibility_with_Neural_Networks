@@ -9,12 +9,16 @@ class GRU_Model(nn.Module):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.bidirectional = bidirectional
 
         # GRU Layer
-        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=bidirectional)
+        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=self.bidirectional)
 
         # Fully Connected Layer
-        self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU
+        if self.bidirectional:
+            self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU
+        else:
+            self.fc = nn.Linear(hidden_size, 1)
 
         self.sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
 

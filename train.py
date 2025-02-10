@@ -31,7 +31,7 @@ EPOCHS = 30
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 128
 NUM_LAYERS = 2
-BIDIRECTIONAL = True
+BIDIRECTIONAL = False
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 # ADAPTIVE_POOL_SIZE = (40, 15)
 
