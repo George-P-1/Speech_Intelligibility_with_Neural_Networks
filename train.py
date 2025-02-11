@@ -130,6 +130,7 @@ def main() -> None:
     for epoch in range(EPOCHS): # Iterate over dataset multiple times
         model.train() # Set model to training mode
         total_loss = 0 # Total loss for the epoch
+        total_rmse_train_loss = 0 # Total RMSE loss for the epoch
 
         for batch_idx, (inputs, masks, targets) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
@@ -138,6 +139,7 @@ def main() -> None:
             optimizer.zero_grad()                       # Reset gradients
             outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
+            rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
             
             # SECTION - Apply mask
 
@@ -159,6 +161,7 @@ def main() -> None:
             # grad_norm = torch.sqrt(sum(p.grad.norm()**2 for p in model.parameters() if p.grad is not None)) # Compute gradient norms for wandb logging
             optimizer.step()                    # Update model weights
             total_loss += loss.item()           # Accumulate loss
+            total_rmse_train_loss += rmse_loss.item() # Accumulate RMSE loss
             # # Log batch loss & gradient norm to WandB
             # wandb.log({
             #     "batch": batch_idx + 1,
@@ -169,27 +172,34 @@ def main() -> None:
         # Validation loop
         model.eval() # Set model to evaluation mode
         val_loss = 0 # Validation loss
+        total_rmse_val_loss = 0 # Total RMSE loss for the epoch
         with torch.no_grad():
             for inputs, masks, targets in val_loader:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
                 outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
+                rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
                 
                 # SECTION - Apply mask
                 loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
                 #!SECTION - Apply mask
 
                 val_loss += loss.item()                     # Accumulate validation loss
+                total_rmse_val_loss += rmse_loss.item()     # Accumulate RMSE loss
 
         # Compute average training and validation loss over all batches
         avg_train_loss = total_loss / len(train_loader)
         avg_val_loss = val_loss / len(val_loader)
+        avg_rmse_train_loss = total_rmse_train_loss / len(train_loader)
+        avg_rmse_val_loss = total_rmse_val_loss / len(val_loader)
 
         # Log metrics to WandB
         wandb.log({
             "epoch": epoch + 1, 
             "epoch_train_loss": avg_train_loss,     # average training loss over all batches
-            "epoch_val_loss": avg_val_loss})        # average validation loss over all batches
+            "epoch_val_loss": avg_val_loss,        # average validation loss over all batches
+            "epoch_rmse_train_loss": avg_rmse_train_loss,     # RMSE loss for the epoch
+            "epoch_rmse_val_loss": avg_rmse_val_loss})  # RMSE loss for the validation set
 
         print(f"Epoch [{epoch+1}], Epoch Train Loss: {avg_train_loss:.8f}, Epoch Val Loss: {avg_val_loss:.8f}")
 
