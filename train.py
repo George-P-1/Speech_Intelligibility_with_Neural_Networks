@@ -27,7 +27,7 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 # TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-09_16-23-47.npz"
 
 BATCH_SIZE = 16
-EPOCHS = 30
+EPOCHS = 50
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 20
 NUM_LAYERS = 3
