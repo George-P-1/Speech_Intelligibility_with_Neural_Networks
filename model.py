@@ -51,8 +51,11 @@ if __name__ == "__main__":
     sequence_length = 277
     feature_dim = 15  # Each time step has 15 features
     # input_size = (277, 15)  # 277 * 15
+    HIDDEN_SIZE = 20
+    NUM_LAYERS = 3
+    BIDIRECTIONAL = True
     # Instantiate the model
-    model = GRU_Model(input_size=feature_dim)
+    model = GRU_Model(input_size=feature_dim, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, bidirectional=BIDIRECTIONAL)
     model.eval() # Set model to evaluation mode
     # Print the model summary
     summary(model, input_size=(batch_size, sequence_length, feature_dim), mode="eval", device="cuda", 

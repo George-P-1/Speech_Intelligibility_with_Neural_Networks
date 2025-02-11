@@ -29,8 +29,8 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 BATCH_SIZE = 16
 EPOCHS = 30
 LEARNING_RATE = 0.001
-HIDDEN_SIZE = 128
-NUM_LAYERS = 2
+HIDDEN_SIZE = 20
+NUM_LAYERS = 3
 BIDIRECTIONAL = True
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 # ADAPTIVE_POOL_SIZE = (40, 15)
@@ -57,7 +57,7 @@ sequence_length = 277
 feature_dim = 15  # Each time step has 15 features
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(128)->GRU(128)->linear->1)"
+MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(20)->GRU(20)->GRU(20)->linear->1)"
 DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
@@ -141,15 +141,15 @@ def main() -> None:
             
             # SECTION - Apply mask
 
-            loss = loss.expand(-1, 277)  # Expands loss to (batch_size, 277)
-            # Check values and shapes
-            if batch_idx % 100 == 0:
-                print("Loss Shape:", loss.shape) # Loss Shape: torch.Size([16, 1])
-                # print("Loss:", loss)
-                print("Masks Shape:", masks.shape)  # Masks Shape: torch.Size([16, 277, 15])
-                print("Masks mean:", masks.mean(dim=2).shape)  # Masks mean: torch.Size([16, 277])
-                print("Masks sum:", masks.sum())    # Masks sum: tensor(33075., device='cuda:0')    values not valid for all batches and samples
-                print("Loss *Masks mean sum:", (loss * masks.mean(dim=2)).sum())    # Loss *Masks mean sum: tensor(53.1478, device='cuda:0', grad_fn=<SumBackward0>)
+            # loss = loss.expand(-1, 277)  # Expands loss to (batch_size, 277)
+            # # Check values and shapes
+            # if batch_idx % 100 == 0:
+            #     print("Loss Shape:", loss.shape) # Loss Shape: torch.Size([16, 1])
+            #     # print("Loss:", loss)
+            #     print("Masks Shape:", masks.shape)  # Masks Shape: torch.Size([16, 277, 15])
+            #     print("Masks mean:", masks.mean(dim=2).shape)  # Masks mean: torch.Size([16, 277])
+            #     print("Masks sum:", masks.sum())    # Masks sum: tensor(33075., device='cuda:0')    values not valid for all batches and samples
+            #     print("Loss *Masks mean sum:", (loss * masks.mean(dim=2)).sum())    # Loss *Masks mean sum: tensor(53.1478, device='cuda:0', grad_fn=<SumBackward0>)
 
             loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
 
