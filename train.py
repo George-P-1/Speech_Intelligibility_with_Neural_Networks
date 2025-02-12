@@ -26,8 +26,8 @@ TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\
 # DATASET_FILE_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Train_Independent_2025-02-09_16-26-28.npz"
 # TEST_DATASET_PATH = r"preprocessed_datasets\npz_d_matrices_2d_masks_correctness\d_matrices_2d_masks_correctness_audiograms_Test_Independent_2025-02-09_16-23-47.npz"
 
-BATCH_SIZE = 1
-EPOCHS = 100
+BATCH_SIZE = 16
+EPOCHS = 50
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 20
 NUM_LAYERS = 3
@@ -62,7 +62,7 @@ DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
-MASKING_LOGIC = "variable-sequence"
+MASKING_LOGIC = "regular"
 
 # -----------------------------------------------------------
 
@@ -136,18 +136,6 @@ def main() -> None:
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
             # unsqueeze ensures targets have shape (batch_size, 1) which is required for MLP model
 
-            # SECTION - Variable sequence length # Masks Shape: torch.Size([16, 277, 15])
-            variable_seq_len = torch.sum(masks == 1, dim=(1, 2)) / masks.shape[2]
-            # print("Variable Sequence Length:", variable_seq_len[0])
-            # print("Variable Sequence Length Shape:", variable_seq_len.shape)
-            # input shape is (batch_size, sequence_length=277, feature_dim=15).
-            # Reduce the input shape to (batch_size, sequence_length=variable_seq_len[0], feature_dim=15)
-            # print("Input Shape Before:", inputs.shape) # REMOVE_LATER - to see input shape before reduction
-            inputs = inputs[:, :int(variable_seq_len[0]), :]
-            # print("Input Shape After:", inputs.shape) #REMOVE_LATER - to see input shape after reduction
-            # return
-            #!SECTION - Variable sequence length
-
             optimizer.zero_grad()                       # Reset gradients
             outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
@@ -165,7 +153,7 @@ def main() -> None:
             #     print("Masks sum:", masks.sum())    # Masks sum: tensor(33075., device='cuda:0')    values not valid for all batches and samples
             #     print("Loss *Masks mean sum:", (loss * masks.mean(dim=2)).sum())    # Loss *Masks mean sum: tensor(53.1478, device='cuda:0', grad_fn=<SumBackward0>)
 
-            # loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
+            loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
 
             #!SECTION - Apply mask
 
@@ -188,20 +176,12 @@ def main() -> None:
         with torch.no_grad():
             for inputs, masks, targets in val_loader:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
-                
-                # SECTION - Variable sequence length # Masks Shape: torch.Size([16, 277, 15])
-                variable_seq_len = torch.sum(masks == 1, dim=(1, 2)) / masks.shape[2]
-                # input shape is (batch_size, sequence_length=277, feature_dim=15).
-                # Reduce the input shape to (batch_size, sequence_length=variable_seq_len[0], feature_dim=15)
-                inputs = inputs[:, :int(variable_seq_len[0]), :]
-                #!SECTION - Variable sequence length
-                
                 outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
                 rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
                 
                 # SECTION - Apply mask
-                # loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
+                loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
                 #!SECTION - Apply mask
 
                 val_loss += loss.item()                     # Accumulate validation loss
