@@ -16,7 +16,7 @@ from eval_function import evaluate_model
 # Constants and Parameters -----------------------------------
 WANDB_PROJECT_NAME = "speech-intelligibility-prediction"
 
-WANDB_GROUP_NAME = "gru-dmatrix-masks-correctness"
+WANDB_GROUP_NAME = "cnn-dmatrix-masks-correctness"
 PREPROCESSED_DATASET_NAME = "d_matrices_2d_masks_correctness_audiograms"
 
 DATASET_PART = "Train" # -----------------------------------
