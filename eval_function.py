@@ -24,7 +24,7 @@ def evaluate_model(model, test_dataset_path, batch_size=128):
         for inputs, masks, targets in test_loader:
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
 
-            outputs = model(inputs, masks.mean(dim=2)).squeeze()
+            outputs = model(inputs).squeeze()
             all_preds.extend(outputs.cpu().numpy())
             all_targets.extend(targets.cpu().numpy())
 

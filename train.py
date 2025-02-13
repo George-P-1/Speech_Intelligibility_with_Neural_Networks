@@ -30,14 +30,13 @@ BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.001
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
-KERNEL_SIZE = 1
+KERNEL_SIZE = 3
 
 TAGS = [
     # "adaptive_pooling",
     # "modified-masking-logic",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
-    "using-squeeze",
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
@@ -117,7 +116,7 @@ def main() -> None:
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
-    criterion = nn.MSELoss(reduction='mean')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
+    criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -131,10 +130,9 @@ def main() -> None:
         for batch_idx, (inputs, masks, targets) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
             # unsqueeze ensures targets have shape (batch_size, 1) which is required for MLP model
-            targets = targets.squeeze(1)
 
             optimizer.zero_grad()                       # Reset gradients
-            outputs = model(inputs, masks.mean(dim=2))           # Forward pass. Outputs are predictions. get masks for only frames
+            outputs = model(inputs)                     # Forward pass. Outputs are predictions
             loss = criterion(outputs, targets)          # Compute loss
             rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
             
@@ -150,8 +148,7 @@ def main() -> None:
             #     print("Masks sum:", masks.sum())    # Masks sum: tensor(33075., device='cuda:0')    values not valid for all batches and samples
             #     print("Loss *Masks mean sum:", (loss * masks.mean(dim=2)).sum())    # Loss *Masks mean sum: tensor(53.1478, device='cuda:0', grad_fn=<SumBackward0>)
 
-            # loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
-
+            loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
 
             #!SECTION - Apply mask
 
@@ -174,14 +171,12 @@ def main() -> None:
         with torch.no_grad():
             for inputs, masks, targets in val_loader:
                 inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
-                targets = targets.squeeze(1)
-
-                outputs = model(inputs, masks.mean(dim=2))                     # Forward pass
+                outputs = model(inputs)                     # Forward pass
                 loss = criterion(outputs, targets)          # Compute validation loss
                 rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
                 
                 # SECTION - Apply mask
-                # loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
+                loss = (loss * masks.mean(dim=2)).sum() / masks.sum()
                 #!SECTION - Apply mask
 
                 val_loss += loss.item()                     # Accumulate validation loss
