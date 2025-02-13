@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, random_split
 from dataset import SpeechIntelligibilityDataset
-from model import GRU_Model
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import kendalltau, pearsonr
 import wandb

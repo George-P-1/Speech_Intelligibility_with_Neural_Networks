@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import wandb
 from dataset import SpeechIntelligibilityDataset
-from model import GRU_Model
+from model import CNN1d
 from torch.utils.data import DataLoader
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import kendalltau, pearsonr
@@ -36,7 +36,7 @@ test_loader = DataLoader(dataset, batch_size=16, shuffle=False)
 sequence_length = 277  # Time steps
 feature_dim = dataset.d_matrices.shape[1]  # Should be 15
 device = "cuda" if torch.cuda.is_available() else "cpu"
-model = GRU_Model(input_size=feature_dim).to(device)
+model = CNN1d(input_size=feature_dim).to(device)
 model.load_state_dict(torch.load(MODEL_PATH))
 
 # Evaluate model

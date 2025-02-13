@@ -4,61 +4,45 @@ import torch.nn as nn
 from torchinfo import summary
 
 # NOTE - GRU model
-class GRU_Model(nn.Module):
-    def __init__(self, input_size, hidden_size=128, num_layers=2, bidirectional=True):
+class CNN1d(nn.Module):
+    def __init__(self, input_size):
         super().__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.bidirectional = bidirectional
 
-        # GRU Layer
-        self.gru = nn.GRU(input_size, self.hidden_size, self.num_layers, batch_first=True, bidirectional=self.bidirectional) 
-        # Input: (batch_size, sequence_length=277, feature_dim=15)
-        # Output: (batch_size, sequence_length=277, hidden_size*2 if bidirectional else hidden_size)
+        # CNN Layers
+        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=20, kernel_size=1, stride=1)  # Input: (batch_size, 15, 277) -> Output: (batch_size, 32, 277)
+        self.relu1 = nn.ReLU()
 
-        # Fully Connected Layer
-        if self.bidirectional:
-            self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU     # Input: (batch_size, hidden_size=128 * 2) -> Output: (batch_size, 1)
-        else:
-            self.fc = nn.Linear(hidden_size, 1)                                         # Input: (batch_size, hidden_size=128) -> Output: (batch_size, 1)
-
-        self.sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
-
-    def forward(self, x):
-        # x shape: (batch_size, sequence_length=277, feature_dim=15)
-        packed_output, hidden = self.gru(x)  # Process sequence
-        # packed_output shape: (batch_size, sequence_length=277, hidden_size=128 * 2 if bidirectional else hidden_size)
-        # hidden shape: (num_layers * num_directions, batch_size, hidden_size=128)
-        # num_directions = 2 if bidirectional else 1
+        self.conv2 = nn.Conv1d(in_channels=20, out_channels=1, kernel_size=1, stride=1)  # Input: (batch_size, 32, 277) -> Output: (batch_size, 64, 277)
+        self.relu2 = nn.ReLU()
         
-        # If bidirectional, combine forward & backward hidden states
-        if self.gru.bidirectional:
-            final_hidden_state = torch.cat((hidden[-2], hidden[-1]), dim=1)
-            # final_hidden_state shape: (batch_size, hidden_size=128 * 2)
-        else:
-            final_hidden_state = hidden[-1]
-            # final_hidden_state shape: (batch_size, hidden_size=128)
+    def forward(self, x):
+        # x shape: (batch_size, frames=277, feature_dim=15)
 
-        output = self.fc(final_hidden_state)  # Fully connected layer   # (batch_size, 128) -> (batch_size, 1)
-        output = self.sigmoid(output)  # Sigmoid activation
-        # output = torch.clamp(output, min=0, max=1)
-        return output
+        # Transpose
+        x = x.permute(0, 2, 1)  # (batch_size, 15, 277)
+
+        # CNN Layers
+        x = self.conv1(x)  # (batch_size, 20, 277)
+        x = self.relu1(x)
+
+        x = self.conv2(x)  # (batch_size, 1, 277)
+        x = self.relu2(x)
+
+        # Take the mean over the time dimension
+        x = torch.mean(x, dim=2)  # (batch_size, 1)
+
+        return x
 
 if __name__ == "__main__":
     # Input Size
     # Input Settings
-    batch_size = 1  # Used only for model summary
-    sequence_length = 277
-    feature_dim = 15  # Each time step has 15 features
-    # input_size = (277, 15)  # 277 * 15
-    HIDDEN_SIZE = 20
-    NUM_LAYERS = 3
-    BIDIRECTIONAL = True
+    frames = 277  # Number of frames in the input
+    octave_bands = 15  # Number of octave bands in the input
     # Instantiate the model
-    model = GRU_Model(input_size=feature_dim, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, bidirectional=BIDIRECTIONAL)
+    model = CNN1d(input_size=octave_bands)
     model.eval() # Set model to evaluation mode
     # Print the model summary
-    summary(model, input_size=(batch_size, sequence_length, feature_dim), mode="eval", device="cuda", 
+    summary(model, input_size=(1, frames, octave_bands), mode="eval", device="cuda", 
             col_names=["input_size", "output_size","num_params","params_percent","kernel_size"], 
             col_width=16,
             verbose=1)
