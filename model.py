@@ -5,14 +5,14 @@ from torchinfo import summary
 
 # NOTE - GRU model
 class CNN1d(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self, input_size, kernel_size):
         super().__init__()
 
         # CNN Layers
-        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=20, kernel_size=1, stride=1)  # Input: (batch_size, 15, 277) -> Output: (batch_size, 32, 277)
+        self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=20, kernel_size=kernel_size, stride=1)  # Input: (batch_size, 15, 277) -> Output: (batch_size, 20, 277)
         self.relu1 = nn.ReLU()
 
-        self.conv2 = nn.Conv1d(in_channels=20, out_channels=1, kernel_size=1, stride=1)  # Input: (batch_size, 32, 277) -> Output: (batch_size, 64, 277)
+        self.conv2 = nn.Conv1d(in_channels=20, out_channels=1, kernel_size=kernel_size, stride=1)  # Input: (batch_size, 20, 277) -> Output: (batch_size, 1, 277)
         self.relu2 = nn.ReLU()
         
     def forward(self, x):
@@ -38,8 +38,9 @@ if __name__ == "__main__":
     # Input Settings
     frames = 277  # Number of frames in the input
     octave_bands = 15  # Number of octave bands in the input
+    kernel_size = 5  # Kernel size for the convolutional layers
     # Instantiate the model
-    model = CNN1d(input_size=octave_bands)
+    model = CNN1d(octave_bands, kernel_size)
     model.eval() # Set model to evaluation mode
     # Print the model summary
     summary(model, input_size=(1, frames, octave_bands), mode="eval", device="cuda", 

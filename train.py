@@ -30,7 +30,7 @@ BATCH_SIZE = 16
 EPOCHS = 50
 LEARNING_RATE = 0.001
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
-# ADAPTIVE_POOL_SIZE = (40, 15)
+KERNEL_SIZE = 3
 
 TAGS = [
     # "adaptive_pooling",
@@ -49,12 +49,13 @@ TAGS = [
     "normalized-dmatrix-log1p",
     # "batch-normalization"
     ]
+
 frames = 277  # Number of frames in the input
 octave_bands = 15  # Number of octave bands in the input
 
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = f"CNN (input(15,277)->CNN(20,277)->277->average->1)"
+MODEL_ARCHITECTURE = f"CNN (input(15,frames)->CNN(20,frames)->frames->average->1)"
 DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
@@ -75,6 +76,7 @@ CONFIG = dict(
     optimizer=OPTIMIZER,
     dropout=DROPOUT,
     masking_logic=MASKING_LOGIC,
+    kernel_size=KERNEL_SIZE
     # adaptive_pool_size=ADAPTIVE_POOL_SIZE
     )
 
@@ -107,9 +109,9 @@ def main() -> None:
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Instantiate model
-    input_size = dataset.d_matrices.shape[2]  # d-matrix size
+    input_size = dataset.d_matrices.shape[2]  # d-matrix octave bands dimension
     print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
-    model = CNN1d(input_size=input_size).to(device)
+    model = CNN1d(input_size, KERNEL_SIZE).to(device)
 
     # Log model architecture to WandB
     wandb.watch(model)
