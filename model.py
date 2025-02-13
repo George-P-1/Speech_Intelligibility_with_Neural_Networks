@@ -18,7 +18,7 @@ class CNN1d(nn.Module):
         # self.sigmoid = nn.Sigmoid()
 
         
-    def forward(self, x):
+    def forward(self, x, masks):
         # x shape: (batch_size, frames=277, feature_dim=15)
 
         # Transpose
@@ -31,8 +31,14 @@ class CNN1d(nn.Module):
         x = self.conv2(x)  # (batch_size, 25, 277)
         x = self.relu2(x)
 
-        # Take the mean over the time dimension
-        x = torch.mean(x, dim=2)  # (batch_size, 1)
+        # Remove the last channel
+        x = x.squeeze(1)  # Shape: (batch_size, 277)
+
+        # Apply mask
+        x = x * masks  # Element-wise multiplication    
+
+        # average over all time frames
+        x = torch.mean(x, dim=1)  # Shape: (batch_size,)
 
         # Sigmoid activation
         # x = self.sigmoid(x)
