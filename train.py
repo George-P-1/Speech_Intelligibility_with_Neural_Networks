@@ -40,14 +40,13 @@ TAGS = [
     "d-matrix-2d",
     # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
-    # "removed-sigmoid",
-    "sigmoid-last-layer",
+    # "sigmoid-last-layer",
     # "ReLU-last-layer",
     # "torch-clamp",
     # "no-last-layer-activation",
     # "variable-dropout",
     "normalized-dmatrix-log1p",
-    # "batch-normalization"
+    # "batch-normalization",
     ]
 
 frames = 277  # Number of frames in the input

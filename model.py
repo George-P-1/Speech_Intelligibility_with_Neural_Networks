@@ -12,8 +12,11 @@ class CNN1d(nn.Module):
         self.conv1 = nn.Conv1d(in_channels=input_size, out_channels=20, kernel_size=kernel_size, stride=1)  # Input: (batch_size, 15, 277) -> Output: (batch_size, 20, 277)
         self.relu1 = nn.ReLU()
 
-        self.conv2 = nn.Conv1d(in_channels=20, out_channels=1, kernel_size=kernel_size, stride=1)  # Input: (batch_size, 20, 277) -> Output: (batch_size, 1, 277)
+        self.conv2 = nn.Conv1d(in_channels=20, out_channels=1, kernel_size=kernel_size, stride=1)  # Input: (batch_size, 20, 277) -> Output: (batch_size, 25, 277)
         self.relu2 = nn.ReLU()
+
+        # self.sigmoid = nn.Sigmoid()
+
         
     def forward(self, x):
         # x shape: (batch_size, frames=277, feature_dim=15)
@@ -25,11 +28,14 @@ class CNN1d(nn.Module):
         x = self.conv1(x)  # (batch_size, 20, 277)
         x = self.relu1(x)
 
-        x = self.conv2(x)  # (batch_size, 1, 277)
+        x = self.conv2(x)  # (batch_size, 25, 277)
         x = self.relu2(x)
 
         # Take the mean over the time dimension
         x = torch.mean(x, dim=2)  # (batch_size, 1)
+
+        # Sigmoid activation
+        # x = self.sigmoid(x)
 
         return x
 
