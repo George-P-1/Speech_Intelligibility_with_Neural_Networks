@@ -49,7 +49,7 @@ BETA = -15                  # Lower signal-to-distortion (SDR) bound in decibels
 
 # SECTION - Functions
 
-def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=False) -> float:
+def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=False, return_tf_bins=False) -> float:
     """
     # Short-Time Objective Intelligibility
     Computes STOI by comparing a clean and speech-in-noise audio. 
@@ -88,6 +88,9 @@ def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=Fa
     # Using Equation 1 from the paper - Apply OBM boolean matrix to spectrogram (STFT)
     clean_tf_units = np.sqrt(np.matmul(obm, (np.square(np.abs(clean_stft)))))
     spin_tf_units = np.sqrt(np.matmul(obm, (np.square(np.abs(spin_stft)))))
+
+    if return_tf_bins:
+        return clean_tf_units, spin_tf_units
     
     # NOTE - Create 3D matrices of temporal envelopes (analysis windows) for clean and spin audio
     # Use a bigger frame of 30 frames (within 481) and 15 bands which equals an analysis window of 384ms
