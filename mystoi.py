@@ -49,7 +49,7 @@ BETA = -15                  # Lower signal-to-distortion (SDR) bound in decibels
 
 # SECTION - Functions
 
-def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=False, return_tf_bins=False) -> float:
+def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=False, return_tf_bins=False, return_3=False, keep_silent_frames=False) -> float:
     """
     # Short-Time Objective Intelligibility
     Computes STOI by comparing a clean and speech-in-noise audio. 
@@ -74,7 +74,8 @@ def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=Fa
         raise Exception("Sampling rate is not {}".format(SR))
 
     # NOTE - Remove silent frames
-    clean_audio, spin_audio = remove_silent_frames(clean_audio, spin_audio, ENERGY_RANGE, TRUE_FRAME_LEN, OVERLAP)
+    if keep_silent_frames == False:
+        clean_audio, spin_audio = remove_silent_frames(clean_audio, spin_audio, ENERGY_RANGE, TRUE_FRAME_LEN, OVERLAP)
 
     # TF Decomposition
     # NOTE - Short-Time Fourier Transform on both signals - to obtain DFT bins
@@ -140,6 +141,9 @@ def compute_stoi(clean_audio, spin_audio, sampling_rate: int, return_d_matrix=Fa
 
     if return_d_matrix:
         return d_matrix
+    
+    if return_3:
+        return d_matrix, clean_tf_units, spin_tf_units
 
     J = clean_inter.shape[1]    # Number of bands
     M = clean_inter.shape[0]    # Total number of frames
