@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from dataset import SpeechIntelligibilityDataset
 from model import GRU_Model
@@ -7,7 +8,7 @@ from scipy.stats import kendalltau, pearsonr
 import wandb
 
 # Function to evaluate model after training
-def evaluate_model(model, test_dataset_path, batch_size=128):
+def evaluate_model(model, test_dataset_path, R_VEC, batch_size=128):
     print("\nRunning evaluation on test dataset...")
 
     # Load dataset
@@ -22,11 +23,16 @@ def evaluate_model(model, test_dataset_path, batch_size=128):
 
     model.eval()    # Set model to evaluation mode
     with torch.no_grad():
-        for inputs, masks, targets in test_loader:
-            inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
+        for inputs, masks, targets, targets_vec in test_loader:
+            inputs, masks, targets, targets_vec = inputs.to(device), masks.to(device), targets.to(device), targets_vec.to(device)
 
-            outputs = model(inputs).squeeze()
-            all_preds.extend(outputs.cpu().numpy())
+            # outputs = model(inputs).squeeze()
+            # Forward pass
+            outputs = model(inputs)                     # Get 10-dimensional softmax output
+            final_outputs = F.softmax(outputs, dim=1)  # Softmax activation without nn module
+            final_outputs = torch.sum(final_outputs * R_VEC, dim=1)  # Compute final intelligibility score
+
+            all_preds.extend(final_outputs.cpu().numpy())
             all_targets.extend(targets.cpu().numpy())
 
     # Compute Metrics

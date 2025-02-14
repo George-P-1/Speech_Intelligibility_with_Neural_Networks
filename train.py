@@ -1,6 +1,7 @@
 # train.py
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from dataset import SpeechIntelligibilityDataset
@@ -32,6 +33,7 @@ LEARNING_RATE = 0.001
 HIDDEN_SIZE = 20
 NUM_LAYERS = 3
 BIDIRECTIONAL = True
+R_VEC = torch.linspace(0, 1, 10, device="cuda")
 DROPOUT = 'variable' # Options: 'none', 'fixed', 'variable'
 # ADAPTIVE_POOL_SIZE = (40, 15)
 
@@ -40,11 +42,10 @@ TAGS = [
     # "modified-masking-logic",
     DATASET_PART,
     PREPROCESSED_DATASET_NAME,
-    "d-matrix-2d",
-    # "d-matrix-3d-reduced",
     "divided-dmatrices-by-30",
     # "removed-sigmoid",
-    "sigmoid-last-layer",
+    # "sigmoid-last-layer",
+    "softmax-last-layer",
     # "ReLU-last-layer",
     # "torch-clamp",
     # "no-last-layer-activation",
@@ -57,10 +58,11 @@ sequence_length = 277
 feature_dim = 15  # Each time step has 15 features
 # MODEL_ARCHITECTURE = "MLP (input(4155)->4096->2048->1024->512->256->128->1)"
 # DROPOUT_ARCHITECTURE = "(input->0.3->0.3->0.2->0.1->0.0->0.0->output)"
-MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(20)->GRU(20)->GRU(20)->linear->1)"
+MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(20)->GRU(20)->GRU(20)->linear->10)->1"
 DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
-CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
+# CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
+CRITERION = "CrossEntropyLoss"
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 MASKING_LOGIC = "regular"
 
@@ -81,6 +83,7 @@ CONFIG = dict(
     num_layers=NUM_LAYERS,
     BIDIRECTIONAL=BIDIRECTIONAL,
     masking_logic=MASKING_LOGIC,
+    r_vec=R_VEC.tolist(),
     # adaptive_pool_size=ADAPTIVE_POOL_SIZE
     )
 
@@ -114,14 +117,15 @@ def main() -> None:
 
     # Instantiate model
     input_size = dataset.d_matrices.shape[2]  # d-matrix size
-    print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
+    # print("Input Size:", input_size) # REMOVE_LATER - to see if input size is correct
     model = GRU_Model(input_size=input_size, hidden_size=HIDDEN_SIZE, num_layers=NUM_LAYERS, bidirectional=BIDIRECTIONAL).to(device)
 
     # Log model architecture to WandB
     wandb.watch(model)
 
     # NOTE - Define loss function and optimizer
-    criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
+    # criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -132,13 +136,25 @@ def main() -> None:
         total_loss = 0 # Total loss for the epoch
         total_rmse_train_loss = 0 # Total RMSE loss for the epoch
 
-        for batch_idx, (inputs, masks, targets) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
-            inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1) 
+        for batch_idx, (inputs, masks, targets, targets_vec) in enumerate(train_loader): # Iterate over batches of size BATCH_SIZE and go through the entire dataset
+            inputs, masks, targets, targets_vec = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1), targets_vec.to(device)
             # unsqueeze ensures targets have shape (batch_size, 1) which is required for MLP model
+            targets = targets.squeeze(1)  # Remove extra dimension for GRU model
 
             optimizer.zero_grad()                       # Reset gradients
-            outputs = model(inputs)                     # Forward pass. Outputs are predictions
-            loss = criterion(outputs, targets)          # Compute loss
+            # Forward pass
+            outputs = model(inputs)                     # Get 10-dimensional softmax output
+            final_outputs = F.softmax(outputs, dim=1)  # Softmax activation without nn module
+            final_outputs = torch.sum(final_outputs * R_VEC, dim=1)  # Compute final intelligibility score
+            # Compute loss
+            # Print the shapes of the outputs and targets
+            # if batch_idx % 100 == 0:
+            #     print("Outputs Shape:", outputs.shape)
+            #     print("Targets Shape:", targets.shape)
+            #     print("Targets Vec Shape:", targets_vec.shape)
+            # targets = targets.argmax(dim=1).long()  # Ensure it is integer type  # Convert one-hot (batch_size, 10) -> class indices (batch_size,) for CrossEntropyLoss
+
+            loss = criterion(outputs, targets_vec)
             rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
             
             # SECTION - Apply mask
@@ -174,10 +190,13 @@ def main() -> None:
         val_loss = 0 # Validation loss
         total_rmse_val_loss = 0 # Total RMSE loss for the epoch
         with torch.no_grad():
-            for inputs, masks, targets in val_loader:
-                inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1)
-                outputs = model(inputs)                     # Forward pass
-                loss = criterion(outputs, targets)          # Compute validation loss
+            for inputs, masks, targets, targets_vec in val_loader:
+                inputs, masks, targets, targets_vec = inputs.to(device), masks.to(device), targets.to(device).unsqueeze(1), targets_vec.to(device)
+                # Forward pass
+                outputs = model(inputs)                     # Get 10-dimensional softmax output
+                final_outputs = F.softmax(outputs, dim=1)  # Softmax activation without nn module
+                final_outputs = torch.sum(final_outputs * R_VEC, dim=1)  # Compute final intelligibility score
+                loss = criterion(outputs, targets_vec)          # Compute validation loss
                 rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
                 
                 # SECTION - Apply mask
@@ -220,7 +239,7 @@ def main() -> None:
     wandb.log({"model_path": model_save_path})
 
     # Evaluate model on test dataset
-    evaluate_model(model, TEST_DATASET_PATH)
+    evaluate_model(model, TEST_DATASET_PATH, R_VEC)
 
     # Print model summary
     summary(model, input_size=(1, sequence_length, feature_dim), mode="eval", device="cuda", 

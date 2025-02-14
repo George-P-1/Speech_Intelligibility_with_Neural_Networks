@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 # from torchsummary import summary
 from torchinfo import summary
 
@@ -18,11 +19,12 @@ class GRU_Model(nn.Module):
 
         # Fully Connected Layer
         if self.bidirectional:
-            self.fc = nn.Linear(hidden_size * 2, 1)  # *2 because bidirectional GRU     # Input: (batch_size, hidden_size=128 * 2) -> Output: (batch_size, 1)
+            self.fc = nn.Linear(hidden_size * 2, 10)  # *2 because bidirectional GRU     # Input: (batch_size, hidden_size=128 * 2) -> Output: (batch_size, 10)
         else:
-            self.fc = nn.Linear(hidden_size, 1)                                         # Input: (batch_size, hidden_size=128) -> Output: (batch_size, 1)
+            self.fc = nn.Linear(hidden_size, 10)                                         # Input: (batch_size, hidden_size=128) -> Output: (batch_size, 10)
 
-        self.sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
+        # self.sigmoid = nn.Sigmoid()  # Ensures output is between 0 and 1
+        # self.softmax = nn.Softmax(dim=1)  # Ensures output is a probability distribution
 
     def forward(self, x):
         # x shape: (batch_size, sequence_length=277, feature_dim=15)
@@ -39,9 +41,13 @@ class GRU_Model(nn.Module):
             final_hidden_state = hidden[-1]
             # final_hidden_state shape: (batch_size, hidden_size=128)
 
-        output = self.fc(final_hidden_state)  # Fully connected layer   # (batch_size, 128) -> (batch_size, 1)
-        output = self.sigmoid(output)  # Sigmoid activation
+        output = self.fc(final_hidden_state)  # Fully connected layer   # (batch_size, 128) -> (batch_size, 10)
+        
+        # output = self.sigmoid(output)  # Sigmoid activation
         # output = torch.clamp(output, min=0, max=1)
+        # output = F.softmax(output, dim=1)  # Softmax activation without nn module
+        # output = self.softmax(output)  # Softmax activation # (batch_size, 10) -> (batch_size, 10)
+        
         return output
 
 if __name__ == "__main__":
