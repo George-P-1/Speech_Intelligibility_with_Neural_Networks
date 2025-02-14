@@ -44,19 +44,19 @@ class SpeechIntelligibilityDataset(Dataset):
         # Correctness bins: tensor([0.0000, 0.1111, 0.2222, 0.3333, 0.4444, 0.5556, 0.6667, 0.7778, 0.8889, 1.0000])
         
         # For each scalar correctness value, find the bin it belongs to
-        self.correctness = torch.bucketize(self.correctness, correctness_bins, right=True)
+        self.correctness_vec = torch.bucketize(self.correctness, correctness_bins, right=True)
         # Correctness after bucketize:  tensor(10)
 
         # Subtract 1 to make it 0-indexed
-        self.correctness -= 1
+        self.correctness_vec -= 1
         
         # Make the bin numbers into one-hot vectors
-        # self.correctness = torch.clamp(self.correctness, min=0, max=9)  # Ensure values are within [0, 10]. Not necessary anymore because i used right=True in bucketize
-        self.correctness = F.one_hot(self.correctness.to(torch.int64), num_classes=10).to(torch.float32)   
+        # self.correctness = torch.clamp(self.correctness_vec, min=0, max=9)  # Ensure values are within [0, 10]. Not necessary anymore because i used right=True in bucketize
+        self.correctness_vec = F.one_hot(self.correctness_vec.to(torch.int64), num_classes=10).to(torch.float32)   
 
         # Shape of d_matrices:  torch.Size([4863, 277, 15])
         # Shape of masks:  torch.Size([4863, 277, 15])
-        # Shape of correctness:  torch.Size([4863, 10])
+        # Shape of correctness_vec:  torch.Size([4863, 10])
 
     def __len__(self):
         return len(self.correctness)
@@ -65,7 +65,8 @@ class SpeechIntelligibilityDataset(Dataset):
         d_matrix = self.d_matrices[idx].clone().detach()
         mask = self.masks[idx].clone().detach()
         correctness = self.correctness[idx].clone().detach()
-        return d_matrix, mask, correctness
+        correctness_vec = self.correctness_vec[idx].clone().detach()
+        return d_matrix, mask, correctness, correctness_vec
 
 
 if __name__ == "__main__":
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     print(f"Dataset masks shape: {dataset.masks.shape}")
     print(f"Dataset correctness shape: {dataset.correctness.shape}")
     idx = 1
-    d_matrix, mask, correctness = dataset[idx]
+    d_matrix, mask, correctness, correctness_vec = dataset[idx]
     print(f"Sample d_matrix shape: {d_matrix.shape}")
     print(f"Sample mask shape: {mask.shape}")
     print(f"Sample correctness: {correctness}\n")
@@ -85,3 +86,4 @@ if __name__ == "__main__":
     print(f"Sample d_matrix: {dataset.__getitem__([idx])[0]}")
     print(f"Sample mask: {dataset.__getitem__([idx])[1]}")
     print(f"Sample correctness: {dataset.__getitem__([idx])[2]}")
+    print(f"Sample correctness_vec: {dataset.__getitem__([idx])[3]}")
