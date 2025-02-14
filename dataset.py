@@ -26,6 +26,41 @@ class SpeechIntelligibilityDataset(Dataset):
         self.correctness = torch.tensor(data["correctness"], dtype=torch.float32)
         self.correctness = self.correctness / 100.0  # Normalize correctness values to [0, 1]
 
+        # STUB
+        idx_to_print = 7 # 2 for 0 SI, 7 for 1 SI
+        print("\nCorrectness before one-hot: ", self.correctness[idx_to_print])
+
+        # Convert correctness from scalar value to 10-bin vector where each bin represents a correctness range
+        # for example  if SI >= 0.00 and SI < 0.11, then the correctness vector is [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]   place=1     idx =0
+        #           or if SI >= 0.11 and SI < 0.22, then the correctness vector is [0, 1, 0, 0, 0, 0, 0, 0, 0, 0]   place=2     idx =1
+        #           or if SI >= 0.22 and SI < 0.33, then the correctness vector is [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]   place=3     idx =2
+        #           or if SI >= 0.33 and SI < 0.44, then the correctness vector is [0, 0, 0, 1, 0, 0, 0, 0, 0, 0]   place=4     idx =3
+        #           or if SI >= 0.44 and SI < 0.55, then the correctness vector is [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]   place=5     idx =4
+        #           or if SI >= 0.55 and SI < 0.66, then the correctness vector is [0, 0, 0, 0, 0, 1, 0, 0, 0, 0]   place=6     idx =5
+        #           or if SI >= 0.66 and SI < 0.77, then the correctness vector is [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]   place=7     idx =6
+        #           or if SI >= 0.77 and SI < 0.88, then the correctness vector is [0, 0, 0, 0, 0, 0, 0, 1, 0, 0]   place=8     idx =7
+        #           or if SI >= 0.88 and SI < 0.99, then the correctness vector is [0, 0, 0, 0, 0, 0, 0, 0, 1, 0]   place=9     idx =8
+        #           or if SI >= 0.99 and SI <= 1.00, then the correctness vector is [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]  place=10    idx =9
+        correctness_bins = torch.linspace(0, 1, steps=10)  # 10 bins for correctness values
+        print("Correctness bins: ", correctness_bins) # tensor([0.0000, 0.1111, 0.2222, 0.3333, 0.4444, 0.5556, 0.6667, 0.7778, 0.8889, 1.0000])
+        
+        # For each scalar correctness value, find the bin it belongs to
+        self.correctness = torch.bucketize(self.correctness, correctness_bins, right=True)
+        print("Correctness after bucketize: ", self.correctness[idx_to_print])
+
+        # Subtract 1 to make it 0-indexed
+        self.correctness -= 1
+        
+        # Make the bin numbers into one-hot vectors
+        # self.correctness = torch.clamp(self.correctness, min=0, max=9)  # Ensure values are within [0, 10]
+        self.correctness = F.one_hot(self.correctness.to(torch.int64), num_classes=10).to(torch.float32)   
+
+        print("Correctness after one-hot: ", self.correctness[idx_to_print])
+
+        print("\nShape of d_matrices: ", self.d_matrices.shape)
+        print("Shape of masks: ", self.masks.shape)
+        print("Shape of correctness: ", self.correctness.shape, "\n")
+
     def __len__(self):
         return len(self.correctness)
 
