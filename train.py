@@ -62,7 +62,8 @@ MODEL_ARCHITECTURE = f"GRU (input({sequence_length}, {feature_dim})->GRU(20)->GR
 DROPOUT_ARCHITECTURE = "(input->0.0->0.0->0.0->output)"
 
 # CRITERION = "MSELoss"   # Other options: nn.L1Loss(), nn.HuberLoss()
-CRITERION = "CrossEntropyLoss"
+# CRITERION = "CrossEntropyLoss"
+CRITERION = "HuberLoss"
 OPTIMIZER = "Adam"      # Other options: optim.AdamW()
 MASKING_LOGIC = "regular"
 
@@ -125,7 +126,8 @@ def main() -> None:
 
     # NOTE - Define loss function and optimizer
     # criterion = nn.MSELoss(reduction='none')  # Default reduction is 'mean'. Using 'none' to compute loss for each sample to apply mask
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = nn.HuberLoss(reduction='mean', delta=0.2)  # You can tune delta for robustness
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
@@ -154,7 +156,7 @@ def main() -> None:
             #     print("Targets Vec Shape:", targets_vec.shape)
             # targets = targets.argmax(dim=1).long()  # Ensure it is integer type  # Convert one-hot (batch_size, 10) -> class indices (batch_size,) for CrossEntropyLoss
 
-            loss = criterion(outputs, targets_vec)
+            loss = criterion(final_outputs, targets)
             rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
             
             # SECTION - Apply mask
@@ -196,7 +198,7 @@ def main() -> None:
                 outputs = model(inputs)                     # Get 10-dimensional softmax output
                 final_outputs = F.softmax(outputs, dim=1)  # Softmax activation without nn module
                 final_outputs = torch.sum(final_outputs * R_VEC, dim=1)  # Compute final intelligibility score
-                loss = criterion(outputs, targets_vec)          # Compute validation loss
+                loss = criterion(final_outputs, targets)          # Compute validation loss
                 rmse_loss = torch.sqrt(loss.mean())   # Compute RMSE loss for the epoch
                 
                 # SECTION - Apply mask
