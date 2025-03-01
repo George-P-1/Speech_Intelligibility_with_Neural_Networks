@@ -35,11 +35,11 @@ The project focuses on utilizing neural networks to predict how intelligible spe
 1. **D-matrix Representations from STOI**: Internal representations (d-matrices) derived from the STOI metric were used as input to various deep learning models to improve speech intelligibility prediction. The implementation and results of the STOI metric is available [here](https://github.com/George-P-1/stoi_Metric).
     - **Multilayer Perceptron (MLP)**: A simple deep feedforward neural network for prediction based on d-matrix features.
         <div align="center">
-            <img src="utils/imgs/mlp-schematic.svg" style="background:white; padding:10px;">
+            <img src="utils/imgs/mlp-schematic.svg">
         </div>
     - **Gated Recurrent Units (GRU)**: A recurrent neural network model designed to capture sequential dependencies in speech intelligibility.
         <div align="center">
-            <img src="utils/imgs/gru-schematic-1.svg " width="500" style="background:white; padding:10px;">
+            <img src="utils/imgs/gru-schematic-1.svg " width="500">
         </div>
 2. **Spectrogram and Cochleogram Representations**: Features extracted from spectrograms and cochleograms were processed by Convolutional Neural Networks (CNNs) for intelligibility prediction.
 
