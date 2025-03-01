@@ -1,0 +1,8 @@
+hydra-core
+omegaconf
+numpy
+scipy
+soundfile
+pandas
+matplotlib
+wandb
