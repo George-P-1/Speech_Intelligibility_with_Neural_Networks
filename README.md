@@ -2,7 +2,7 @@
 
 This repository contains code for predicting speech intelligibility using deep learning models based on the Clarity Prediction Challenge ([CPC1](https://claritychallenge.org/docs/cpc1/cpc1_intro)) dataset.
 
-This work was part of a B\.Sc. thesis that aimed to investigate and develop neural networks for speech intelligibility prediction, evaluating their effectiveness against traditional intrusive objective metrics such as STOI.
+This work was part of a B\.Sc. thesis that aimed to investigate and develop neural networks for speech intelligibility prediction, evaluating their effectiveness against traditional intrusive objective metrics such as STOI[^1].
 
 ---
 
@@ -101,3 +101,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgements
 The code and models here are based on the research and work of [George Punnoose](https://github.com/George-P-1) and [Emin Shirinov](https://github.com/Codeexia0). The dataset used in this work was provided by [The Clarity Project](https://claritychallenge.org).
 
+[^1]: Cees H. Taal, Richard C. Hendriks, Richard Heusdens, and Jesper Jensen. “An Algorithm for Intelligibility Prediction of Time-Frequency Weighted Noisy Speech”. In: IEEE Transactions on Audio, Speech, and Language Processing 19.7 (Sept. 2011), pp. 2125–2136. doi: 10.1109/TASL.2011.2114881.
