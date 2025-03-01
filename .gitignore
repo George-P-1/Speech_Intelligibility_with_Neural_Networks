@@ -1,3 +1,9 @@
 .venv/
 .vscode/
 hydra_files/
+__pycache__/
+*.npz
+wandb/
+*.pth
+preprocessed_datasets/
+saved_models/
