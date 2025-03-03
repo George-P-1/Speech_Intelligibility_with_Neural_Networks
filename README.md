@@ -43,7 +43,7 @@ The project focuses on utilizing neural networks to predict how intelligible spe
         </div>
 2. **Spectrogram and Cochleogram Representations**: Features extracted from spectrograms and cochleograms were processed by Convolutional Neural Networks (CNNs) for intelligibility prediction.
 
-This repository focuses mainly on the first approach (D-matrix representations for prediction), which was carried out by **George Punnoose**. The code related to **Emin Shirinov**'s work on spectrogram and cochleogram-based prediction using CNNs is available in his own [fork](https://github.com/Codeexia0/Speech_Intelligibility_with_Neural_Networks) of the repository.
+This repository focuses mainly on the first approach (D-matrix representations for prediction), which was carried out by **George Punnoose**. The code related to **Emin Shirinov**'s work on spectrogram and cochleogram-based prediction using CNNs is available in his own [fork](https://github.com/Codeexia0/Speech_Intelligibility_with_Neural_Networks) and in his branch [EMINCNN](https://github.com/George-P-1/Speech_Intelligibility_with_Neural_Networks/tree/EMINCNN) of the repository.
 
 The dataset used is the [CPC1 dataset](https://claritychallenge.org/docs/cpc1/cpc1_download), which includes noisy speech signals and corresponding intelligibility scores.
 
@@ -51,7 +51,7 @@ The dataset used is the [CPC1 dataset](https://claritychallenge.org/docs/cpc1/cp
 
 ## Experimentation
 
-The models were trained and evaluated on the CPC1 dataset, and various hyperparameters and architectural configurations were tested to optimize performance. A key observation was that **GRU models** outperformed **MLP models**, achieving better results for speech intelligibility prediction.
+The models were trained and evaluated on the CPC1 dataset, and various hyperparameters and architectural configurations were tested to optimize performance. A key observation was that **GRU models** outperformed **MLP models**, achieving better results for speech intelligibility prediction. The experimental results shown here are only for the d-matrix-based models.
 
 ### MLP Model Results
 
@@ -99,6 +99,6 @@ CNNs trained on spectrograms effectively captured speech intelligibility pattern
 This project is licensed under the MIT License - see the LICENSE file for details. -->
 
 ## Acknowledgements
-The code and models here are based on the research and work of [George Punnoose](https://github.com/George-P-1) and [Emin Shirinov](https://github.com/Codeexia0). The dataset used in this work was provided by [The Clarity Project](https://claritychallenge.org).
+This thesis is the research and work of [George Punnoose](https://github.com/George-P-1) and [Emin Shirinov](https://github.com/Codeexia0). The dataset used in this work was provided by [The Clarity Project](https://claritychallenge.org).
 
 [^1]: Cees H. Taal, Richard C. Hendriks, Richard Heusdens, and Jesper Jensen. “An Algorithm for Intelligibility Prediction of Time-Frequency Weighted Noisy Speech”. In: IEEE Transactions on Audio, Speech, and Language Processing 19.7 (Sept. 2011), pp. 2125–2136. doi: 10.1109/TASL.2011.2114881.
